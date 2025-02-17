@@ -63,6 +63,7 @@
 </template>
 
 <script>
+import { SpeedInsights } from "@vercel/speed-insights/vue"
 import { inject } from "@vercel/analytics"
 import Sidebar from '@/components/SideBar.vue'
 
