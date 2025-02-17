@@ -61,6 +61,7 @@
 </template>
 
 <script>
+import { inject } from "@vercel/analytics"
 import Sidebar from '@/components/SideBar.vue'
 
 export default {
