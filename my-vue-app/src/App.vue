@@ -1,4 +1,5 @@
 <template>
+  <Analytics>
   <div id="app">
     <Sidebar 
       :isLoggedIn="isLoggedIn"
@@ -58,6 +59,7 @@
       <button class="button-confirm" type="submit">Let`s go →</button>
     </form>
   </div>
+</Analytics>
 </template>
 
 <script>
