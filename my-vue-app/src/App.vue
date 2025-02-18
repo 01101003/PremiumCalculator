@@ -1,12 +1,12 @@
 <template>
   <Analytics>
-  <div id="app">
+    <div id="app">
     <Sidebar 
       :isLoggedIn="isLoggedIn"
       :username="username"
       :userPlan="userPlan"
       @show-about="showAboutUs = true; showOverlay = true"
-      @show-login="showLoginForm = true; showOverlay = true"
+      @show-login="showAuthForm($event)"
     />
     
     <div class="main-content" :class="{ 'with-sidebar': true }">
@@ -39,10 +39,12 @@
     </div>
     
     <!-- Login Form -->
-    <form class="form" v-show="showLoginForm" @click.stop @submit.prevent="submitLogin">
-      <div class="title">Welcome,<br /><span>sign up to continue</span></div>
+    <form class="form" v-show="showLoginForm" @click.stop @submit.prevent="submitAuth">
+      <div class="title">Welcome,<br><span>{{ isSignUp ? 'sign up to join us' : 'sign in to continue' }}</span></div>
       <input type="email" placeholder="Email" v-model="email" class="input" />
       <input type="password" placeholder="Password" v-model="password" class="input" />
+      <input v-if="isSignUp" type="password" placeholder="Confirm Password" v-model="confirmPassword" class="input" />
+      
       <div class="login-with">
         <div class="button-log"><b>t</b></div>
         <div class="button-log">
@@ -56,14 +58,14 @@
           </svg>
         </div>
       </div>
-      <button class="button-confirm" type="submit">Let`s go →</button>
+      <button class="button-confirm" type="submit">{{ isSignUp ? 'Sign Up →' : 'Let`s go →' }}</button>
     </form>
   </div>
 </Analytics>
 </template>
 
 <script>
-import { SpeedInsights } from "@vercel/speed-insights/vue"
+
 import { inject } from "@vercel/analytics"
 import Sidebar from '@/components/SideBar.vue'
 
@@ -76,8 +78,10 @@ export default {
       showOverlay: false,
       showAboutUs: false,
       showLoginForm: false,
+      isSignUp: false,
       email: '',
       password: '',
+      confirmPassword: '',
       isLoggedIn: false,
       username: 'Guest User',
       userPlan: 'Free Plan'
@@ -88,14 +92,30 @@ export default {
       this.showAboutUs = false;
       this.showLoginForm = false;
       this.showOverlay = false;
+      this.resetForm();
     },
-    submitLogin() {
-      // For demo purposes, let's simulate a successful login
+    resetForm() {
+      this.email = '';
+      this.password = '';
+      this.confirmPassword = '';
+    },
+    showAuthForm(type) {
+      this.isSignUp = type === 'signup';
+      this.showLoginForm = true;
+      this.showOverlay = true;
+    },
+    submitAuth() {
+      if (this.isSignUp && this.password !== this.confirmPassword) {
+        alert('Passwords do not match!');
+        return;
+      }
+      
+      // For demo purposes, simulate successful authentication
       this.isLoggedIn = true;
       this.username = this.email.split('@')[0];
       this.userPlan = 'Premium Plan';
       
-      // Close the login form
+      // Close the form
       this.closeModals();
     }
   }

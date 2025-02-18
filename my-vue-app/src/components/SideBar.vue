@@ -23,18 +23,30 @@
       </div>
       
       <div class="login-prompt" v-else>
-        <button 
-          class="login-button"
-          @click="$emit('show-login')"
-          @mouseenter="buttonMouseEnter"
-          @mouseleave="buttonMouseLeave"
-          @mousedown="buttonMouseDown"
-          @mouseup="buttonMouseUp"
-        >
-          LOGIN
-        </button>
-        <span v-show="!isCollapsed">to save your calculations</span>
-      </div>
+    <div class="auth-buttons">
+      <button 
+        class="auth-button"
+        @click="$emit('show-login', 'login')"
+        @mouseenter="buttonMouseEnter"
+        @mouseleave="buttonMouseLeave"
+        @mousedown="buttonMouseDown"
+        @mouseup="buttonMouseUp"
+      >
+        LOGIN
+      </button>
+      <button 
+        class="auth-button"
+        @click="$emit('show-login', 'signup')"
+        @mouseenter="buttonMouseEnter"
+        @mouseleave="buttonMouseLeave"
+        @mousedown="buttonMouseDown"
+        @mouseup="buttonMouseUp"
+      >
+        SIGN UP
+      </button>
+    </div>
+    <span v-show="!isCollapsed">to save your calculations</span>
+  </div>
       
       <!-- Navigation Links -->
       <nav class="sidebar-nav">
@@ -319,4 +331,25 @@ export default {
 .nav-item.icon-only .icon {
   margin: 0;
 }
+
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.auth-button {
+  background: white;
+  border: 2px solid #333;
+  color: #333;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 3px 3px 0 #333;
+  font-family: inherit;
+}
+
 </style>
