@@ -161,7 +161,7 @@ export default {
       }
     },
     // Rest of the methods remain unchanged
-    navigate(name, url) {
+    navigate(name) {
       if (name && this.calculatorButtons[name]) {
         this.$router.push({ name: this.calculatorButtons[name] });
       }
