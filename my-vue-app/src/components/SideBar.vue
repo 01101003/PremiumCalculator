@@ -79,6 +79,7 @@
       </nav>
     </div>
   </div>
+  
 </template>
 
 <script>
@@ -152,6 +153,32 @@ export default {
     }
   }
 }
+</script>
+
+<script setup>
+import { ref } from 'vue';
+import { appwriteService } from '@/config/appwrite';
+
+const user = ref(null);
+
+const getUser = async () => {
+  try {
+    user.value = await appwriteService.account.get();
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+  }
+};
+
+const logout = async () => {
+  try {
+    await appwriteService.account.deleteSession('current');
+    user.value = null;
+  } catch (error) {
+    console.error('Logout failed:', error);
+  }
+};
+
+getUser();
 </script>
 
 <style scoped>

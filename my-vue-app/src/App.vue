@@ -61,13 +61,40 @@
       <button class="button-confirm" type="submit">{{ isSignUp ? 'Sign Up →' : 'Let`s go →' }}</button>
     </form>
   </div>
+  <div>
+    <h1>Welcome to the App</h1>
+    <p v-if="user">Logged in as: {{ user.name }}</p>
+    <SideBar />
+  </div>
+
 </Analytics>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue';
+import { appwriteService } from '@/config/appwrite';
 
+const user = ref(null);
+
+const checkSession = async () => {
+  try {
+    const session = await appwriteService.account.get();
+    user.value = session;
+  } catch (error) {
+    console.error('No active session:', error);
+  }
+};
+
+onMounted(() => {
+  checkSession();
+});
+</script>
+
+<script>
 import { inject } from "@vercel/analytics"
 import Sidebar from '@/components/SideBar.vue'
+import { ref, onMounted } from 'vue';
+import { appwriteService } from '@/config/appwrite';
 
 export default {
   components: {
@@ -118,8 +145,18 @@ export default {
       // Close the form
       this.closeModals();
     }
+
+    
+
+
+
   }
+
+
+  
+
 }
+
 </script>
 
 <style scoped>
