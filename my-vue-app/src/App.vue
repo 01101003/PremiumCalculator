@@ -62,7 +62,7 @@
     </form>
   </div>
   <div>
-    <h1>Welcome to the App</h1>
+    
     <p v-if="user">Logged in as: {{ user.name }}</p>
     <SideBar />
   </div>
