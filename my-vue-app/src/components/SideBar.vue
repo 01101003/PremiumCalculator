@@ -14,39 +14,49 @@
       <!-- User Profile Section -->
       <div class="user-profile" v-if="isLoggedIn">
         <div class="avatar">
-          <img src="" alt="User Avatar" />
+          <img :src="userProfileImage || '/api/placeholder/40/40'" alt="User Avatar" />
         </div>
         <div class="user-info" v-show="!isCollapsed">
           <h3>{{ username }}</h3>
           <p>{{ userPlan }}</p>
+          <button 
+            class="logout-button" 
+            @click="$emit('logout')"
+            @mouseenter="buttonMouseEnter"
+            @mouseleave="buttonMouseLeave"
+            @mousedown="buttonMouseDown"
+            @mouseup="buttonMouseUp"
+          >
+            LOGOUT
+          </button>
         </div>
       </div>
       
       <div class="login-prompt" v-else>
-    <div class="auth-buttons">
-      <button 
-        class="auth-button"
-        @click="$emit('show-login', 'login')"
-        @mouseenter="buttonMouseEnter"
-        @mouseleave="buttonMouseLeave"
-        @mousedown="buttonMouseDown"
-        @mouseup="buttonMouseUp"
-      >
-        LOGIN
-      </button>
-      <button 
-        class="auth-button"
-        @click="$emit('show-login', 'signup')"
-        @mouseenter="buttonMouseEnter"
-        @mouseleave="buttonMouseLeave"
-        @mousedown="buttonMouseDown"
-        @mouseup="buttonMouseUp"
-      >
-        SIGN UP
-      </button>
-    </div>
-    <span v-show="!isCollapsed">to save your calculations</span>
-  </div>
+        <div class="auth-buttons">
+          <button 
+            class="auth-button"
+            @click="$emit('show-login', 'login')"
+            @mouseenter="buttonMouseEnter"
+            @mouseleave="buttonMouseLeave"
+            @mousedown="buttonMouseDown"
+            @mouseup="buttonMouseUp"
+          >
+            LOGIN
+          </button>
+          <button 
+            class="auth-button"
+            @click="$emit('show-login', 'signup')"
+            @mouseenter="buttonMouseEnter"
+            @mouseleave="buttonMouseLeave"
+            @mousedown="buttonMouseDown"
+            @mouseup="buttonMouseUp"
+          >
+            SIGN UP
+          </button>
+        </div>
+        <span v-show="!isCollapsed">to save your calculations</span>
+      </div>
       
       <!-- Navigation Links -->
       <nav class="sidebar-nav">
@@ -76,13 +86,26 @@
           <span class="icon">{{ getIcon(name) }}</span>
           <span class="label" v-show="!isCollapsed">{{ name }}</span>
         </router-link>
+
+        <div v-if="isLoggedIn" class="nav-section">
+          <h4 v-show="!isCollapsed">HISTORY</h4>
+          <router-link 
+            to="/calculations-history"
+            class="nav-item"
+            :class="{ 'icon-only': isCollapsed }"
+            title="Calculations History"
+          >
+            <span class="icon">📊</span>
+            <span class="label" v-show="!isCollapsed">CALCULATIONS</span>
+          </router-link>
+        </div>
       </nav>
     </div>
   </div>
-  
 </template>
-
 <script>
+import { appwriteService } from '@/config/appwrite';
+
 export default {
   name: 'Sidebar',
   props: {
@@ -114,7 +137,8 @@ export default {
         'ABOUT US': '',
         'CHEAT SHEET': 'cheatsheet',
         'ASK MISTRAL': 'AI'
-      }
+      },
+      userProfileImage: null
     }
   },
   methods: {
@@ -150,35 +174,38 @@ export default {
     buttonMouseUp(event) {
       event.target.style.transform = 'translate(-2px, -2px)';
       event.target.style.boxShadow = '5px 5px 0 #333';
+    },
+    async fetchUserProfileImage() {
+      if (this.isLoggedIn) {
+        try {
+          const users = await appwriteService.databases.listDocuments(
+            appwriteService.DATABASE_ID,
+            appwriteService.COLLECTIONS.USERS,
+            [appwriteService.databases.Query.equal('email', this.username)]
+          );
+          
+          if (users.total > 0 && users.documents[0].profile_image) {
+            this.userProfileImage = users.documents[0].profile_image;
+          }
+        } catch (error) {
+          console.error('Failed to fetch profile image:', error);
+        }
+      }
     }
+  },
+  watch: {
+    isLoggedIn(newValue) {
+      if (newValue) {
+        this.fetchUserProfileImage();
+      } else {
+        this.userProfileImage = null;
+      }
+    }
+  },
+  mounted() {
+    this.fetchUserProfileImage();
   }
 }
-</script>
-
-<script setup>
-import { ref } from 'vue';
-import { appwriteService } from '@/config/appwrite';
-
-const user = ref(null);
-
-const getUser = async () => {
-  try {
-    user.value = await appwriteService.account.get();
-  } catch (error) {
-    console.error('Failed to fetch user:', error);
-  }
-};
-
-const logout = async () => {
-  try {
-    await appwriteService.account.deleteSession('current');
-    user.value = null;
-  } catch (error) {
-    console.error('Logout failed:', error);
-  }
-};
-
-getUser();
 </script>
 
 <style scoped>
