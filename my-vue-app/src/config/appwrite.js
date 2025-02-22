@@ -9,7 +9,7 @@ const client = new Client()
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const functions = new Functions(client);
-export const realtime = new Realtime(client); // Add Realtime service
+export const realtime = new Realtime(client); // Initialize Realtime service
 
 // Database and Collection IDs
 export const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE;
@@ -234,4 +234,3 @@ export const appwriteService = {
         return realtime.unsubscribe(subscription);
     }
 };
-
