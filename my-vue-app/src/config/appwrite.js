@@ -1,5 +1,5 @@
 // src/config/appwrite.js
-import { Client, Account, Databases, ID, Functions } from 'appwrite';
+import { Client, Account, Databases, ID, Functions, Query } from 'appwrite';
 
 // Load environment variables for security (recommended for Vercel)
 const client = new Client()
@@ -27,20 +27,24 @@ export const appwriteService = {
                 DATABASE_ID,
                 COLLECTIONS.USERS,
                 [
-                    databases.Query.orderDesc('user_id'),
-                    databases.Query.limit(1)
+                    Query.orderDesc('user_id'),
+                    Query.limit(1)
                 ]
             );
             return users.total === 0 ? 1 : users.documents[0].user_id + 1;
         } catch (error) {
             console.error('Failed to generate user ID:', error);
-            throw error;
+            throw new Error(`Failed to generate user ID: ${error.message}`);
         }
     },
 
     // Create new user document
     async createUserDocument(userId, email, name, profileImage = null) {
         try {
+            if (!userId || !email || !name) {
+                throw new Error('Missing required fields for user document creation');
+            }
+
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.USERS,
@@ -57,13 +61,17 @@ export const appwriteService = {
             );
         } catch (error) {
             console.error('Error creating user document:', error);
-            throw error;
+            throw new Error(`Failed to create user document: ${error.message}`);
         }
     },
 
     // Create authentication credentials
     async createAuthCredentials(userId, provider, providerUserId) {
         try {
+            if (!userId || !provider || !providerUserId) {
+                throw new Error('Missing required fields for auth credentials');
+            }
+
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
@@ -78,37 +86,83 @@ export const appwriteService = {
             );
         } catch (error) {
             console.error('Error storing auth credentials:', error);
-            throw error;
+            throw new Error(`Failed to create auth credentials: ${error.message}`);
         }
     },
 
-    // Create new user account
+    // Create new user account with rollback on failure
     async createEmailAccount(email, password, name) {
-        try {
-            const appwriteUser = await account.create(ID.unique(), email, password, name);
-            const userId = await this.generateUserId();
+        let appwriteUser = null;
+        let userId = null;
 
+        try {
+            // Input validation
+            if (!email || !password || !name) {
+                throw new Error('Email, password, and name are required');
+            }
+
+            // Create the auth account first
+            appwriteUser = await account.create(ID.unique(), email, password, name);
+            
+            // Generate the user ID
+            userId = await this.generateUserId();
+            
+            // Create the user document
             await this.createUserDocument(userId, email, name);
             await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
 
+            // If everything succeeded, log in
             return await this.login(email, password);
         } catch (error) {
             console.error('Error creating email account:', error);
-            throw error;
+            
+            // Cleanup on failure
+            if (appwriteUser) {
+                try {
+                    await account.deleteSession('current');
+                    
+                    // If we created a user document, try to delete it
+                    if (userId) {
+                        const users = await databases.listDocuments(
+                            DATABASE_ID,
+                            COLLECTIONS.USERS,
+                            [Query.equal('user_id', userId)]
+                        );
+                        if (users.total > 0) {
+                            await databases.deleteDocument(
+                                DATABASE_ID,
+                                COLLECTIONS.USERS,
+                                users.documents[0].$id
+                            );
+                        }
+                    }
+                } catch (cleanupError) {
+                    console.error('Failed to clean up after account creation error:', cleanupError);
+                }
+            }
+            throw new Error(`Account creation failed: ${error.message}`);
         }
     },
 
     // Login with email
     async login(email, password) {
         try {
+            if (!email || !password) {
+                throw new Error('Email and password are required');
+            }
+
             const session = await account.createEmailSession(email, password);
             const userData = await this.getUserByProviderId('email', session.userId);
+
+            if (!userData) {
+                throw new Error('User data not found');
+            }
 
             await this.updateLastLogin(userData.user_id, 'email', session.userId);
             return { ...session, ...userData };
         } catch (error) {
             console.error('Login failed:', error);
-            throw error;
+            throw new Error(`Login failed: ${error.message}`);
         }
     },
 
@@ -118,7 +172,7 @@ export const appwriteService = {
             await account.deleteSession('current');
         } catch (error) {
             console.error('Logout failed:', error);
-            throw error;
+            throw new Error(`Logout failed: ${error.message}`);
         }
     },
 
@@ -129,9 +183,9 @@ export const appwriteService = {
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
                 [
-                    databases.Query.equal('user_id', userId),
-                    databases.Query.equal('provider', provider),
-                    databases.Query.equal('provider_user_id', providerUserId),
+                    Query.equal('user_id', userId),
+                    Query.equal('provider', provider),
+                    Query.equal('provider_user_id', providerUserId),
                 ]
             );
 
@@ -145,12 +199,17 @@ export const appwriteService = {
             }
         } catch (error) {
             console.error('Failed to update last login:', error);
+            // Non-critical error, don't throw
         }
     },
 
     // Save calculation
     async saveCalculation(userId, calculationType, input, result) {
         try {
+            if (!userId || !calculationType || !input || result === undefined) {
+                throw new Error('Missing required fields for calculation');
+            }
+
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.CALCULATIONS,
@@ -165,69 +224,44 @@ export const appwriteService = {
             );
         } catch (error) {
             console.error('Error saving calculation:', error);
-            throw error;
+            throw new Error(`Failed to save calculation: ${error.message}`);
         }
     },
 
     // Get user calculations
     async getUserCalculations(userId) {
         try {
+            if (!userId) {
+                throw new Error('User ID is required');
+            }
+
             return await databases.listDocuments(
                 DATABASE_ID,
                 COLLECTIONS.CALCULATIONS,
                 [
-                    databases.Query.equal('user_id', userId),
-                    databases.Query.orderDesc('timestamp')
+                    Query.equal('user_id', userId),
+                    Query.orderDesc('timestamp')
                 ]
             );
         } catch (error) {
             console.error('Error fetching calculations:', error);
-            throw error;
+            throw new Error(`Failed to fetch calculations: ${error.message}`);
         }
-    },
-
-    // ==========================
-    // 🌟 Appwrite Cloud Functions
-    // ==========================
-
-    // Execute an Appwrite Cloud Function
-    async executeFunction(functionId, payload = {}) {
-        try {
-            const response = await functions.createExecution(
-                functionId,
-                JSON.stringify(payload)
-            );
-            return response;
-        } catch (error) {
-            console.error(`Error executing function ${functionId}:`, error);
-            throw error;
-        }
-    },
-
-    // Create user via cloud function
-    async createUserViaFunction(userId, email, name) {
-        return await this.executeFunction('CREATE_USER_FUNCTION_ID', { userId, email, name });
-    },
-
-    // Delete inactive users via cloud function
-    async deleteInactiveUsers() {
-        return await this.executeFunction('DELETE_INACTIVE_USERS_FUNCTION_ID');
-    },
-
-    // Send welcome email via cloud function
-    async sendWelcomeEmail(email, name) {
-        return await this.executeFunction('SEND_WELCOME_EMAIL_FUNCTION_ID', { email, name });
     },
 
     // Get user by provider ID
     async getUserByProviderId(provider, providerUserId) {
         try {
+            if (!provider || !providerUserId) {
+                throw new Error('Provider and provider user ID are required');
+            }
+
             const credentials = await databases.listDocuments(
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
                 [
-                    databases.Query.equal('provider', provider),
-                    databases.Query.equal('provider_user_id', providerUserId)
+                    Query.equal('provider', provider),
+                    Query.equal('provider_user_id', providerUserId)
                 ]
             );
 
@@ -236,7 +270,7 @@ export const appwriteService = {
                 const users = await databases.listDocuments(
                     DATABASE_ID,
                     COLLECTIONS.USERS,
-                    [databases.Query.equal('user_id', userId)]
+                    [Query.equal('user_id', userId)]
                 );
 
                 if (users.total > 0) {
@@ -247,11 +281,29 @@ export const appwriteService = {
             return null;
         } catch (error) {
             console.error('Error fetching user by provider ID:', error);
-            throw error;
+            throw new Error(`Failed to fetch user: ${error.message}`);
+        }
+    },
+
+    // Execute an Appwrite Cloud Function
+    async executeFunction(functionId, payload = {}) {
+        try {
+            if (!functionId) {
+                throw new Error('Function ID is required');
+            }
+
+            return await functions.createExecution(
+                functionId,
+                JSON.stringify(payload)
+            );
+        } catch (error) {
+            console.error(`Error executing function ${functionId}:`, error);
+            throw new Error(`Function execution failed: ${error.message}`);
         }
     }
 };
 
-// Debugging: 
-console.log('Appwrite Account Object:', account);
-console.log('Is createEmailSession a function?', typeof account.createEmailSession === 'function');
+// Optional: Add event listeners for debugging
+client.subscribe('*', response => {
+    console.log('Appwrite event received:', response);
+});
