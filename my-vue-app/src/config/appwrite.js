@@ -217,8 +217,41 @@ export const appwriteService = {
     // Send welcome email via cloud function
     async sendWelcomeEmail(email, name) {
         return await this.executeFunction('SEND_WELCOME_EMAIL_FUNCTION_ID', { email, name });
+    },
+
+    // Get user by provider ID
+    async getUserByProviderId(provider, providerUserId) {
+        try {
+            const credentials = await databases.listDocuments(
+                DATABASE_ID,
+                COLLECTIONS.AUTH_CREDENTIALS,
+                [
+                    databases.Query.equal('provider', provider),
+                    databases.Query.equal('provider_user_id', providerUserId)
+                ]
+            );
+
+            if (credentials.total > 0) {
+                const userId = credentials.documents[0].user_id;
+                const users = await databases.listDocuments(
+                    DATABASE_ID,
+                    COLLECTIONS.USERS,
+                    [databases.Query.equal('user_id', userId)]
+                );
+
+                if (users.total > 0) {
+                    return users.documents[0];
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error fetching user by provider ID:', error);
+            throw error;
+        }
     }
 };
 
-console.log(account); // Check if the account object is initialized
-console.log(typeof account.createEmailSession); // Should log "function"
+// Debugging: Check if the account object is initialized correctly
+console.log('Appwrite Account Object:', account);
+console.log('Is createEmailSession a function?', typeof account.createEmailSession === 'function');
