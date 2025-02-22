@@ -219,3 +219,6 @@ export const appwriteService = {
         return await this.executeFunction('SEND_WELCOME_EMAIL_FUNCTION_ID', { email, name });
     }
 };
+
+console.log(account); // Check if the account object is initialized
+console.log(typeof account.createEmailSession); // Should log "function"
