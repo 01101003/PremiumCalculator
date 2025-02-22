@@ -1,5 +1,5 @@
 // src/config/appwrite.js
-import { Client, Account, Databases, ID, Functions, Realtime } from 'appwrite';
+import { Client, Account, Databases, ID, Functions } from 'appwrite';
 
 // Load environment variables for security (recommended for Vercel)
 const client = new Client()
@@ -9,7 +9,6 @@ const client = new Client()
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const functions = new Functions(client);
-export const realtime = new Realtime(client); // Initialize Realtime service
 
 // Database and Collection IDs
 export const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE;
@@ -218,19 +217,5 @@ export const appwriteService = {
     // Send welcome email via cloud function
     async sendWelcomeEmail(email, name) {
         return await this.executeFunction('SEND_WELCOME_EMAIL_FUNCTION_ID', { email, name });
-    },
-
-    // ==========================
-    // 🌟 Realtime Subscriptions
-    // ==========================
-
-    // Subscribe to Realtime updates
-    subscribeToRealtime(channel, callback) {
-        return realtime.subscribe(channel, callback);
-    },
-
-    // Unsubscribe from Realtime updates
-    unsubscribeFromRealtime(subscription) {
-        return realtime.unsubscribe(subscription);
     }
 };
