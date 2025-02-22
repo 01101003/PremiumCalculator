@@ -91,58 +91,77 @@ export const appwriteService = {
     },
 
     // Create new user account with rollback on failure
-    async createEmailAccount(email, password, name) {
-        let appwriteUser = null;
-        let userId = null;
+async createEmailAccount(email, password, name) {
+    let appwriteUser = null;
+    let userId = null;
 
-        try {
-            // Input validation
-            if (!email || !password || !name) {
-                throw new Error('Email, password, and name are required');
-            }
+    try {
+        // Create the auth account first
+        appwriteUser = await account.create(ID.unique(), email, password, name);
+        
+        // Generate the user ID
+        userId = await this.generateUserId();
+        
+        // Create the user document
+        await this.createUserDocument(userId, email, name);
+        await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
 
-            // Create the auth account first
-            appwriteUser = await account.create(ID.unique(), email, password, name);
-            
-            // Generate the user ID
-            userId = await this.generateUserId();
-            
-            // Create the user document
-            await this.createUserDocument(userId, email, name);
-            await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
+        // Create a session using the account client
+        const session = await account.createSession(email, password);
+        const userData = await this.getUserByProviderId('email', appwriteUser.$id);
 
-            // If everything succeeded, log in
-            return await this.login(email, password);
-        } catch (error) {
-            console.error('Error creating email account:', error);
-            
-            // Cleanup on failure
-            if (appwriteUser) {
-                try {
-                    await account.deleteSession('current');
-                    
-                    // If we created a user document, try to delete it
-                    if (userId) {
-                        const users = await databases.listDocuments(
+        return { ...session, ...userData };
+    } catch (error) {
+        console.error('Error creating email account:', error);
+        
+        // Cleanup on failure
+        if (appwriteUser && appwriteUser.$id) {
+            try {
+                await account.deleteSession('current');
+                // If we created a user document, try to delete it
+                if (userId) {
+                    const users = await databases.listDocuments(
+                        DATABASE_ID,
+                        COLLECTIONS.USERS,
+                        [Query.equal('user_id', userId)]
+                    );
+                    if (users.total > 0) {
+                        await databases.deleteDocument(
                             DATABASE_ID,
                             COLLECTIONS.USERS,
-                            [Query.equal('user_id', userId)]
+                            users.documents[0].$id
                         );
-                        if (users.total > 0) {
-                            await databases.deleteDocument(
-                                DATABASE_ID,
-                                COLLECTIONS.USERS,
-                                users.documents[0].$id
-                            );
-                        }
                     }
-                } catch (cleanupError) {
-                    console.error('Failed to clean up after account creation error:', cleanupError);
                 }
+            } catch (cleanupError) {
+                console.error('Failed to clean up after account creation error:', cleanupError);
             }
-            throw new Error(`Account creation failed: ${error.message}`);
         }
-    },
+        throw new Error(`Account creation failed: ${error.message}`);
+    }
+},
+
+// Also update the login function
+async login(email, password) {
+    try {
+        if (!email || !password) {
+            throw new Error('Email and password are required');
+        }
+
+        const session = await account.createSession(email, password);
+        const userData = await this.getUserByProviderId('email', session.userId);
+
+        if (!userData) {
+            throw new Error('User data not found');
+        }
+
+        await this.updateLastLogin(userData.user_id, 'email', session.userId);
+        return { ...session, ...userData };
+    } catch (error) {
+        console.error('Login failed:', error);
+        throw new Error(`Login failed: ${error.message}`);
+    }
+},
 
     // Login with email
     async login(email, password) {
