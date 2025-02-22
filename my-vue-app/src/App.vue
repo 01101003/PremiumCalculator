@@ -67,14 +67,63 @@
     </div>
   </Analytics>
 </template>
+<script>
+import { appwriteService } from '@/config/appwrite';
+
+export default {
+    data() {
+        return {
+            calculations: [],
+            realtimeSubscription: null
+        };
+    },
+    async mounted() {
+        // Fetch initial data
+        await this.fetchCalculations();
+
+        // Subscribe to realtime updates
+        const channel = `databases.${appwriteService.DATABASE_ID}.collections.${appwriteService.COLLECTIONS.CALCULATIONS}.documents`;
+        this.realtimeSubscription = appwriteService.subscribeToRealtime(channel, (response) => {
+            console.log('Realtime update:', response);
+
+            // Handle the update
+            if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+                this.calculations.push(response.payload);
+            } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+                const updatedCalculation = response.payload;
+                const index = this.calculations.findIndex(c => c.$id === updatedCalculation.$id);
+                if (index !== -1) {
+                    this.calculations.splice(index, 1, updatedCalculation);
+                }
+            } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
+                const deletedCalculationId = response.payload.$id;
+                this.calculations = this.calculations.filter(c => c.$id !== deletedCalculationId);
+            }
+        });
+    },
+    methods: {
+        async fetchCalculations() {
+            try {
+                const response = await appwriteService.getUserCalculations(this.currentUser.$id);
+                this.calculations = response.documents;
+            } catch (error) {
+                console.error('Failed to fetch calculations:', error);
+            }
+        }
+    },
+    beforeUnmount() {
+        // Unsubscribe from realtime updates when the component is destroyed
+        if (this.realtimeSubscription) {
+            appwriteService.unsubscribeFromRealtime(this.realtimeSubscription);
+        }
+    }
+};
+</script>
 
 <script>
 import Sidebar from '@/components/SideBar.vue';
 import { appwriteService, account } from '@/config/appwrite';
-import { Client } from 'appwrite';
-const client = new Client()
-    .setEndpoint('https://cloud.appwrite.io/v1')
-    .setProject('67a9c97e000c15d5ed35');
+
 
 // Subscribe to files channel
 client.subscribe('files', response => {
