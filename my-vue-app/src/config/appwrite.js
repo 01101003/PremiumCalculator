@@ -255,5 +255,3 @@ export const appwriteService = {
 // Debugging: 
 console.log('Appwrite Account Object:', account);
 console.log('Is createEmailSession a function?', typeof account.createEmailSession === 'function');
-console.log('Appwrite Databases Object:', databases);
-console.log('Is Query.orderDesc a function?', typeof databases.Query.orderDesc === 'function');
