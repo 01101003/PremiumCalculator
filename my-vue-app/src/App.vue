@@ -69,10 +69,20 @@
 </template>
 
 <script>
-import { inject } from "@vercel/analytics";
 import Sidebar from '@/components/SideBar.vue';
-import { ref, onMounted, computed } from 'vue';
 import { appwriteService, account } from '@/config/appwrite';
+import { Client } from 'appwrite';
+const client = new Client()
+    .setEndpoint('https://cloud.appwrite.io/v1')
+    .setProject('67a9c97e000c15d5ed35');
+
+// Subscribe to files channel
+client.subscribe('files', response => {
+    if(response.events.includes('buckets.*.files.*.create')) {
+        // Log when a new file is uploaded
+        console.log(response.payload);
+    }
+});
 
 export default {
   components: {
