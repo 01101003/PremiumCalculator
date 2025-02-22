@@ -67,71 +67,10 @@
     </div>
   </Analytics>
 </template>
-<script>
-import { appwriteService } from '@/config/appwrite';
-
-export default {
-    data() {
-        return {
-            calculations: [],
-            realtimeSubscription: null
-        };
-    },
-    async mounted() {
-        // Fetch initial data
-        await this.fetchCalculations();
-
-        // Subscribe to realtime updates
-        const channel = `databases.${appwriteService.DATABASE_ID}.collections.${appwriteService.COLLECTIONS.CALCULATIONS}.documents`;
-        this.realtimeSubscription = appwriteService.subscribeToRealtime(channel, (response) => {
-            console.log('Realtime update:', response);
-
-            // Handle the update
-            if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-                this.calculations.push(response.payload);
-            } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
-                const updatedCalculation = response.payload;
-                const index = this.calculations.findIndex(c => c.$id === updatedCalculation.$id);
-                if (index !== -1) {
-                    this.calculations.splice(index, 1, updatedCalculation);
-                }
-            } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
-                const deletedCalculationId = response.payload.$id;
-                this.calculations = this.calculations.filter(c => c.$id !== deletedCalculationId);
-            }
-        });
-    },
-    methods: {
-        async fetchCalculations() {
-            try {
-                const response = await appwriteService.getUserCalculations(this.currentUser.$id);
-                this.calculations = response.documents;
-            } catch (error) {
-                console.error('Failed to fetch calculations:', error);
-            }
-        }
-    },
-    beforeUnmount() {
-        // Unsubscribe from realtime updates when the component is destroyed
-        if (this.realtimeSubscription) {
-            appwriteService.unsubscribeFromRealtime(this.realtimeSubscription);
-        }
-    }
-};
-</script>
 
 <script>
 import Sidebar from '@/components/SideBar.vue';
 import { appwriteService, account } from '@/config/appwrite';
-
-
-// Subscribe to files channel
-client.subscribe('files', response => {
-    if(response.events.includes('buckets.*.files.*.create')) {
-        // Log when a new file is uploaded
-        console.log(response.payload);
-    }
-});
 
 export default {
   components: {
@@ -149,8 +88,9 @@ export default {
       fullName: '',
       currentUser: null,
       authError: '',
-      isLoading: false
-    }
+      isLoading: false,
+      realtimeSubscription: null // Add realtime subscription
+    };
   },
   computed: {
     isLoggedIn() {
@@ -239,6 +179,9 @@ export default {
           // Get full user data from our custom users collection
           const userData = await this.getUserData(session.$id);
           this.currentUser = { ...session, ...userData };
+
+          // Subscribe to realtime updates after login
+          this.subscribeToRealtimeUpdates();
         }
       } catch (error) {
         console.log('No active session');
@@ -274,12 +217,39 @@ export default {
         console.error('Error fetching user data:', error);
         return null;
       }
+    },
+    // Subscribe to realtime updates
+    subscribeToRealtimeUpdates() {
+      if (this.isLoggedIn) {
+        const channel = `databases.${appwriteService.DATABASE_ID}.collections.${appwriteService.COLLECTIONS.CALCULATIONS}.documents`;
+        this.realtimeSubscription = appwriteService.subscribeToRealtime(channel, (response) => {
+          console.log('Realtime update:', response);
+
+          // Handle the update
+          if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+            // Handle document creation
+            console.log('New calculation created:', response.payload);
+          } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+            // Handle document update
+            console.log('Calculation updated:', response.payload);
+          } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
+            // Handle document deletion
+            console.log('Calculation deleted:', response.payload);
+          }
+        });
+      }
     }
   },
   mounted() {
     this.checkSession();
+  },
+  beforeUnmount() {
+    // Unsubscribe from realtime updates when the component is destroyed
+    if (this.realtimeSubscription) {
+      appwriteService.unsubscribeFromRealtime(this.realtimeSubscription);
+    }
   }
-}
+};
 </script>
 
 <style scoped>
