@@ -66,49 +66,81 @@ export const appwriteService = {
     },
 
     // Create authentication credentials
-    async createAuthCredentials(userId, provider, providerUserId) {
-        try {
-            if (!userId || !provider || !providerUserId) {
-                throw new Error('Missing required fields for auth credentials');
-            }
-
-            return await databases.createDocument(
-                DATABASE_ID,
-                COLLECTIONS.AUTH_CREDENTIALS,
-                ID.unique(),
-                {
-                    user_id: userId,
-                    provider,
-                    provider_user_id: providerUserId,
-                    created_at: new Date().toISOString(),
-                    last_login: new Date().toISOString()
-                }
-            );
-        } catch (error) {
-            console.error('Error storing auth credentials:', error);
-            throw new Error(`Failed to create auth credentials: ${error.message}`);
+    // Create authentication credentials
+async createAuthCredentials(userId, provider, providerUserId) {
+    try {
+        if (!userId || !provider || !providerUserId) {
+            throw new Error('Missing required fields for auth credentials');
         }
-    },
+
+        return await databases.createDocument(
+            DATABASE_ID,
+            COLLECTIONS.AUTH_CREDENTIALS,
+            ID.unique(), // Generate new unique ID for the document
+            {
+                user_id: userId,
+                provider,
+                provider_user_id: providerUserId,
+                created_at: new Date().toISOString(),
+                last_login: new Date().toISOString()
+            }
+        );
+    } catch (error) {
+        console.error('Error storing auth credentials:', error);
+        throw new Error(`Failed to create auth credentials: ${error.message}`);
+    }
+},
+
+// Create new user document
+async createUserDocument(userId, email, name, profileImage = null) {
+    try {
+        if (!userId || !email || !name) {
+            throw new Error('Missing required fields for user document creation');
+        }
+
+        return await databases.createDocument(
+            DATABASE_ID,
+            COLLECTIONS.USERS,
+            ID.unique(), // Generate new unique ID for the document
+            {
+                user_id: userId,
+                email,
+                name,
+                profile_image: profileImage,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                is_active: true
+            }
+        );
+    } catch (error) {
+        console.error('Error creating user document:', error);
+        throw new Error(`Failed to create user document: ${error.message}`);
+    }
+},
 
     // Create new user account with rollback on failure
+// Create new user account with rollback on failure
 async createEmailAccount(email, password, name) {
     let appwriteUser = null;
     let userId = null;
 
     try {
-        // Create the auth account first
-        appwriteUser = await account.create(ID.unique(), email, password, name);
+        // Create a valid ID for the auth account
+        const uniqueId = ID.unique();
         
-        // Generate the user ID
+        // Create the auth account first
+        appwriteUser = await account.create(uniqueId, email, password, name);
+        
+        // Generate the user ID for our custom users collection
         userId = await this.generateUserId();
         
         // Create the user document
         await this.createUserDocument(userId, email, name);
-        await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
+        await this.createAuthCredentials(userId, 'email', uniqueId); // Use the same uniqueId
 
-        // Create a session using the account client
+        // Create a session
         const session = await account.createSession(email, password);
-        const userData = await this.getUserByProviderId('email', appwriteUser.$id);
+        const userData = await this.getUserByProviderId('email', uniqueId);
 
         return { ...session, ...userData };
     } catch (error) {
@@ -117,7 +149,9 @@ async createEmailAccount(email, password, name) {
         // Cleanup on failure
         if (appwriteUser && appwriteUser.$id) {
             try {
-                await account.deleteSession('current');
+                // If the user was created, try to delete them
+                await account.delete();
+                
                 // If we created a user document, try to delete it
                 if (userId) {
                     const users = await databases.listDocuments(
