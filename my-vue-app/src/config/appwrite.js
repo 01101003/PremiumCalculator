@@ -109,7 +109,7 @@ export const appwriteService = {
             await this.createAuthCredentials(userId, 'email', uniqueId);
 
             // Create a session
-            const session = await account.createEmailSession(email, password);
+            const session = await account.createEmailPasswordSession(email, password); // Fixed: Use createEmailPasswordSession
             const userData = await this.getUserByProviderId('email', uniqueId);
 
             return { ...session, ...userData };
@@ -126,7 +126,7 @@ export const appwriteService = {
                 throw new Error('Email and password are required');
             }
 
-            const session = await account.createEmailSession(email, password);
+            const session = await account.createEmailPasswordSession(email, password); // Fixed: Use createEmailPasswordSession
             const userData = await this.getUserByProviderId('email', session.userId);
 
             if (!userData) {
