@@ -75,7 +75,7 @@ export const appwriteService = {
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
-                ID.unique(), // Generate new unique ID for the document
+                ID.unique(),
                 {
                     user_id: userId,
                     provider,
@@ -90,35 +90,23 @@ export const appwriteService = {
         }
     },
 
-    // Create new user account with rollback on failure
+    // Create new user account (simplified without cleanup logic)
     async createEmailAccount(email, password, name) {
-        let appwriteUser = null;
-        let userId = null;
-        let createdDocuments = [];
-
         try {
             // Create a valid ID for the auth account (must meet Appwrite's requirements)
             const uniqueId = ID.unique();
             
             // Create the auth account first
-            appwriteUser = await account.create(uniqueId, email, password, name);
+            await account.create(uniqueId, email, password, name);
             
             // Generate the sequential user ID for our custom users collection
-            userId = await this.generateUserId();
+            const userId = await this.generateUserId();
             
-            // Create the user document and store its ID for potential rollback
-            const userDoc = await this.createUserDocument(userId, email, name);
-            createdDocuments.push({
-                collection: COLLECTIONS.USERS,
-                id: userDoc.$id
-            });
+            // Create the user document
+            await this.createUserDocument(userId, email, name);
 
-            // Create auth credentials and store its ID for potential rollback
-            const authDoc = await this.createAuthCredentials(userId, 'email', uniqueId);
-            createdDocuments.push({
-                collection: COLLECTIONS.AUTH_CREDENTIALS,
-                id: authDoc.$id
-            });
+            // Create auth credentials
+            await this.createAuthCredentials(userId, 'email', uniqueId);
 
             // Create a session
             const session = await account.createEmailSession(email, password);
@@ -127,26 +115,6 @@ export const appwriteService = {
             return { ...session, ...userData };
         } catch (error) {
             console.error('Error creating email account:', error);
-            
-            // Enhanced cleanup on failure
-            try {
-                // Delete the Appwrite account if it was created
-                if (appwriteUser && appwriteUser.$id) {
-                    await account.deleteIdentity(appwriteUser.$id); // Corrected cleanup method
-                }
-                
-                // Delete any created documents
-                for (const doc of createdDocuments) {
-                    await databases.deleteDocument(
-                        DATABASE_ID,
-                        doc.collection,
-                        doc.id
-                    );
-                }
-            } catch (cleanupError) {
-                console.error('Failed to clean up after account creation error:', cleanupError);
-            }
-            
             throw new Error(`Account creation failed: ${error.message}`);
         }
     },
