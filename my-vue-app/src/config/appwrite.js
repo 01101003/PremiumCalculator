@@ -126,14 +126,11 @@ async createEmailAccount(email, password, name) {
     let createdDocuments = [];
 
     try {
-        // Create a valid ID for the auth account (must meet Appwrite's requirements)
-        const uniqueId = ID.unique();
-        
-        // Create the auth account first
-        appwriteUser = await account.create(uniqueId, email, password, name);
-        
-        // Generate the sequential user ID for our custom users collection
+        // First generate sequential user ID for our custom users collection
         userId = await this.generateUserId();
+        
+        // Create the Appwrite account with email
+        appwriteUser = await account.create(email, password, name);
         
         // Create the user document and store its ID for potential rollback
         const userDoc = await this.createUserDocument(userId, email, name);
@@ -142,8 +139,8 @@ async createEmailAccount(email, password, name) {
             id: userDoc.$id
         });
 
-        // Create auth credentials and store its ID for potential rollback
-        const authDoc = await this.createAuthCredentials(userId, 'email', uniqueId);
+        // Create auth credentials using the Appwrite user ID
+        const authDoc = await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
         createdDocuments.push({
             collection: COLLECTIONS.AUTH_CREDENTIALS,
             id: authDoc.$id
@@ -151,7 +148,7 @@ async createEmailAccount(email, password, name) {
 
         // Create a session
         const session = await account.createSession(email, password);
-        const userData = await this.getUserByProviderId('email', uniqueId);
+        const userData = await this.getUserByProviderId('email', appwriteUser.$id);
 
         return { ...session, ...userData };
     } catch (error) {
@@ -161,16 +158,21 @@ async createEmailAccount(email, password, name) {
         try {
             // Delete the Appwrite account if it was created
             if (appwriteUser && appwriteUser.$id) {
+                await account.deleteSession('current');
                 await account.delete();
             }
             
             // Delete any created documents
             for (const doc of createdDocuments) {
-                await databases.deleteDocument(
-                    DATABASE_ID,
-                    doc.collection,
-                    doc.id
-                );
+                try {
+                    await databases.deleteDocument(
+                        DATABASE_ID,
+                        doc.collection,
+                        doc.id
+                    );
+                } catch (deleteError) {
+                    console.error(`Failed to delete document: ${deleteError.message}`);
+                }
             }
         } catch (cleanupError) {
             console.error('Failed to clean up after account creation error:', cleanupError);
