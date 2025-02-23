@@ -129,37 +129,33 @@ async createEmailAccount(email, password, name) {
         // First generate sequential user ID for our custom users collection
         userId = await this.generateUserId();
         
-        // Create the Appwrite account with email
-        appwriteUser = await account.create(email, password, name);
+        // Create the Appwrite account using the email method
+        appwriteUser = await account.createEmailSession(email, password);
         
-        // Create the user document and store its ID for potential rollback
+        // Create the user document
         const userDoc = await this.createUserDocument(userId, email, name);
         createdDocuments.push({
             collection: COLLECTIONS.USERS,
             id: userDoc.$id
         });
 
-        // Create auth credentials using the Appwrite user ID
+        // Create auth credentials using the session ID
         const authDoc = await this.createAuthCredentials(userId, 'email', appwriteUser.$id);
         createdDocuments.push({
             collection: COLLECTIONS.AUTH_CREDENTIALS,
             id: authDoc.$id
         });
 
-        // Create a session
-        const session = await account.createSession(email, password);
         const userData = await this.getUserByProviderId('email', appwriteUser.$id);
 
-        return { ...session, ...userData };
+        return { ...appwriteUser, ...userData };
     } catch (error) {
         console.error('Error creating email account:', error);
         
-        // Enhanced cleanup on failure
+        // Cleanup on failure
         try {
-            // Delete the Appwrite account if it was created
             if (appwriteUser && appwriteUser.$id) {
-                await account.deleteSession('current');
-                await account.delete();
+                await account.deleteSessions(); // Delete all sessions
             }
             
             // Delete any created documents
