@@ -40,143 +40,153 @@
 </template>
 
 <script>
+import Sidebar from '@/components/SideBar.vue';
+import { appwriteService, account } from '@/config/appwrite';
+import { mapState, mapGetters, mapActions } from 'vuex';
+
 export default {
+  components: {
+    Sidebar
+  },
   data() {
     return {
-      operation: 'solve',
-      result: '',
-      steps: '',
-      plot: '',
-      isLoading: false,
-      mathField: null
+      showOverlay: false,
+      showAboutUs: false,
+      showLoginForm: false,
+      isSignUp: false,
+      email: '',
+      password: '',
+      confirmPassword: '',
+      fullName: '',
+      authError: '',
+      isLoading: false
+    };
+  },
+  computed: {
+    ...mapState({
+      storeUser: state => state.currentUser
+    }),
+    ...mapGetters([
+      'isLoggedIn',
+      'userId'
+    ]),
+    username() {
+      return this.isLoggedIn ? this.storeUser.name : 'Guest User';
+    },
+    userPlan() {
+      return this.isLoggedIn ? 'Premium Plan' : 'Free Plan';
     }
   },
-  mounted() {
-    this.initMathField();
-    this.loadExternalStyles();
-  },
   methods: {
-    loadExternalStyles() {
-      if (!document.getElementById('press-start-2p-font')) {
-        const link = document.createElement('link');
-        link.id = 'press-start-2p-font';
-        link.rel = 'stylesheet';
-        link.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap';
-        document.head.appendChild(link);
-      }
+    ...mapActions([
+      'fetchCurrentUser',
+      'updateUserState',
+      'clearUserState'
+    ]),
+    closeModals() {
+      this.showAboutUs = false;
+      this.showLoginForm = false;
+      this.showOverlay = false;
+      this.resetForm();
     },
-    initMathField() {
-      const MQ = window.MathQuill.getInterface(2);
-      this.mathField = MQ.MathField(this.$refs.mathInput, {
-        handlers: {
-          edit: () => {
-            this.clearResults();
-          }
-        }
-      });
+    resetForm() {
+      this.email = '';
+      this.password = '';
+      this.confirmPassword = '';
+      this.fullName = '';
+      this.authError = '';
     },
-    clearResults() {
-      this.result = '';
-      this.steps = '';
-      this.plot = '';
+    showAuthForm(type) {
+      this.isSignUp = type === 'signup';
+      this.showLoginForm = true;
+      this.showOverlay = true;
     },
-    formatQuery(input, operation) {
-      let query = input
-        .replace(/\\frac{([^}]*)}{([^}]*)}/g, '($1)/($2)')
-        .replace(/\\left|\\right|\\cdot|\\times/g, '')
-        .replace(/\{|\}/g, '')
-        .replace(/\\/g, '');
-
-      switch(operation) {
-        case 'solve':
-          return `solve ${query} for x`;
-        case 'simplify':
-          return `simplify ${query}`;
-        case 'factor':
-          return `factor ${query}`;
-        case 'expand':
-          return `expand ${query}`;
-        case 'integrate':
-          return `integrate ${query} with respect to x`;
-        case 'derivative':
-          return `derivative of ${query} with respect to x`;
-        case 'plot':
-          throw new Error('Plotting is not supported in this calculator mode.');
-        default:
-          return query;
-      }
-    },
-    displayError(message) {
-      const errorDiv = `<div class="error">${message}</div>`;
-      this.result += errorDiv;
-    },
-    displayWarning(operation) {
-      const warningMessages = {
-        'plot': 'Plotting is not supported in this calculator mode.',
-        'simplify': 'For complex simplifications, try writing the expression in a standard form.',
-        'expand': 'For complex expansions, try breaking down the expression into smaller parts.'
-      };
-
-      if (warningMessages[operation]) {
-        const warningDiv = `
-          <div class="warning" style="background-color: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-            ${warningMessages[operation]}
-          </div>
-        `;
-        this.result += warningDiv;
-      }
-    },
-    async calculate() {
-      const input = this.mathField.latex();
-      
-      if (!input.trim()) {
-        this.displayError('Please enter an expression');
-        return;
-      }
-
-      this.clearResults();
-      this.displayWarning(this.operation);
+    async submitAuth() {
+      this.authError = '';
       this.isLoading = true;
-
+      
       try {
-        if (this.operation === 'plot') {
-          throw new Error('Plotting is not supported in this calculator mode.');
-        }
-
-        const query = this.formatQuery(input, this.operation);
-        console.log('Formatted query:', query);
-
-        const response = await fetch('/api/wolfram', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query }),
-        });
-
-        console.log('Response status:', response.status);
-
-        if (!response.ok) {
-          if (response.status === 501) {
-            throw new Error('This operation is not supported. Try simplifying your input or breaking it into steps.');
+        if (this.isSignUp) {
+          if (this.password !== this.confirmPassword) {
+            this.authError = 'Passwords do not match!';
+            this.isLoading = false;
+            return;
           }
-          throw new Error('Failed to get response from Wolfram Alpha');
+          
+          // Create new user account
+          const userData = await appwriteService.createEmailAccount(
+            this.email,
+            this.password,
+            this.fullName || this.email.split('@')[0]
+          );
+          
+          // Update store with user data
+          await this.updateUserState(userData);
+        } else {
+          // Login existing user
+          const userData = await appwriteService.login(this.email, this.password);
+          
+          // Update store with user data
+          await this.updateUserState(userData);
         }
-
-        const result = await response.text();
-        console.log('Result:', result);
-
-        this.result += `<div class="result-text">${result}</div>`;
-
+        
+        // Close the form on success
+        this.closeModals();
+        
       } catch (error) {
-        console.error('Error:', error);
-        this.displayError(error.message || 'An error occurred while processing your request');
+        console.error('Authentication error:', error);
+        this.authError = error.message || 'Authentication failed. Please try again.';
       } finally {
         this.isLoading = false;
       }
+    },
+    async handleLogout() {
+      try {
+        await appwriteService.logout();
+        await this.clearUserState();
+      } catch (error) {
+        console.error('Logout failed:', error);
+        // Force clear user state even if API logout fails
+        await this.clearUserState();
+      }
+    },
+    async checkSession() {
+      try {
+        // First try to get current session from Vuex store
+        const currentUser = await this.fetchCurrentUser();
+        
+        // If no user in Vuex store, try to fetch from Appwrite
+        if (!currentUser) {
+          const session = await account.get();
+          if (session.$id) {
+            // Get full user data from our custom users collection
+            const userData = await this.getUserData(session.$id);
+            if (userData) {
+              // Update Vuex store with user data
+              await this.updateUserState({ ...session, ...userData });
+            }
+          }
+        }
+      } catch (error) {
+        console.log('No active session:', error);
+        // Clear user state in Vuex store
+        await this.clearUserState();
+      }
+    },
+    async getUserData(appwriteUserId) {
+      try {
+        const userData = await appwriteService.getUserByProviderId('email', appwriteUserId);
+        return userData;
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
     }
+  },
+  mounted() {
+    this.checkSession();
   }
-}
+};
 </script>
 
 <style scoped>
