@@ -44,12 +44,18 @@ import Sidebar from '@/components/SideBar.vue';
 import { appwriteService, account } from '@/config/appwrite';
 import { mapState, mapGetters, mapActions } from 'vuex';
 
+
 export default {
   components: {
     Sidebar
   },
   data() {
     return {
+      operation: 'solve',
+      mathField: null,
+      result: '',
+      steps: '',
+      plot: '',
       showOverlay: false,
       showAboutUs: false,
       showLoginForm: false,
@@ -181,10 +187,107 @@ export default {
         console.error('Error fetching user data:', error);
         return null;
       }
+    },
+    // Add this method to initialize MathQuill
+    initMathInput() {
+      if (!window.MathQuill) {
+        console.error('MathQuill not loaded. Make sure to include the library.');
+        return;
+      }
+      
+      const MQ = window.MathQuill.getInterface(2);
+      this.mathField = MQ.MathField(this.$refs.mathInput, {
+        spaceBehavesLikeTab: true,
+        handlers: {
+          edit: () => {
+            // Optional: Handle input changes
+          }
+        }
+      });
+    },
+    // Add the calculate method
+    async calculate() {
+      if (!this.mathField) {
+        console.error('Math input not initialized');
+        return;
+      }
+      
+      this.isLoading = true;
+      
+      try {
+        const input = this.mathField.latex(); // Get LaTeX from the editor
+        
+        // Check if user is logged in
+        if (!this.isLoggedIn && this.operation !== 'solve' && this.operation !== 'simplify') {
+          alert('Please log in to use advanced functions like ' + this.operation);
+          this.isLoading = false;
+          return;
+        }
+        
+        // Create payload for calculation
+        const payload = {
+          operation: this.operation,
+          input: input
+        };
+        
+        // This would call your calculation backend
+        // For example, using Appwrite functions
+        const result = await appwriteService.executeFunction(
+          'calculationFunction',  // Your function ID
+          payload
+        );
+        
+        // Process the result
+        if (result && result.response) {
+          const data = JSON.parse(result.response);
+          this.result = data.result || 'No result returned';
+          this.steps = data.steps || '';
+          this.plot = data.plot || '';
+          
+          // Save calculation if logged in
+          if (this.isLoggedIn) {
+            await appwriteService.saveCalculation(
+              this.userId,
+              this.operation,
+              input,
+              this.result
+            );
+          }
+        } else {
+          this.result = 'Error processing calculation';
+        }
+      } catch (error) {
+        console.error('Calculation error:', error);
+        this.result = `Error: ${error.message || 'Unknown error'}`;
+      } finally {
+        this.isLoading = false;
+      }
     }
   },
   mounted() {
     this.checkSession();
+    
+    // Add this to initialize the math input after component is mounted
+    // We need to wait for any external math libraries to load
+    this.$nextTick(() => {
+      // Load MathQuill if it's not already loaded
+      if (!window.MathQuill) {
+        const mqScript = document.createElement('script');
+        mqScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.js';
+        mqScript.onload = () => {
+          this.initMathInput();
+        };
+        document.head.appendChild(mqScript);
+        
+        // Also load the CSS
+        const mqStyle = document.createElement('link');
+        mqStyle.rel = 'stylesheet';
+        mqStyle.href = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.css';
+        document.head.appendChild(mqStyle);
+      } else {
+        this.initMathInput();
+      }
+    });
   }
 };
 </script>

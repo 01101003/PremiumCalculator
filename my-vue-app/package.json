@@ -20,6 +20,7 @@
     "appwrite": "^17.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "mathquill": "^0.10.1-a",
     "openai": "^4.85.1",
     "pinia": "^2.3.1",
     "vercel": "^41.2.0",
