@@ -44,7 +44,6 @@ import Sidebar from '@/components/SideBar.vue';
 import { appwriteService, account } from '@/config/appwrite';
 import { mapState, mapGetters, mapActions } from 'vuex';
 
-
 export default {
   components: {
     Sidebar
@@ -188,7 +187,7 @@ export default {
         return null;
       }
     },
-    // Add this method to initialize MathQuill
+    // Initialize MathQuill
     initMathInput() {
       if (!window.MathQuill) {
         console.error('MathQuill not loaded. Make sure to include the library.');
@@ -205,7 +204,26 @@ export default {
         }
       });
     },
-    // Add the calculate method
+    // Construct Wolfram Alpha API query based on operation type
+    buildWolframQuery(input, operation) {
+      switch (operation) {
+        case 'solve':
+          return `solve ${input}`;
+        case 'simplify':
+          return `simplify ${input}`;
+        case 'factor':
+          return `factor ${input}`;
+        case 'expand':
+          return `expand ${input}`;
+        case 'integrate':
+          return `integrate ${input}`;
+        case 'derivative':
+          return `derivative of ${input}`;
+        default:
+          return input;
+      }
+    },
+    // Calculate using Wolfram API via Appwrite Function
     async calculate() {
       if (!this.mathField) {
         console.error('Math input not initialized');
@@ -217,34 +235,37 @@ export default {
       try {
         const input = this.mathField.latex(); // Get LaTeX from the editor
         
-        // Check if user is logged in
-        if (!this.isLoggedIn && this.operation !== 'solve' && this.operation !== 'simplify') {
-          alert('Please log in to use advanced functions like ' + this.operation);
+        // Restrict premium features for non-logged in users
+        const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
+        if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
+          alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
           this.isLoading = false;
           return;
         }
         
-        // Create payload for calculation
-        const payload = {
-          operation: this.operation,
-          input: input
-        };
+        // Build the Wolfram Alpha query
+        const query = this.buildWolframQuery(input, this.operation);
         
-        // This would call your calculation backend
-        // For example, using Appwrite functions
+        // Call Appwrite function that interfaces with Wolfram API
         const result = await appwriteService.executeFunction(
-          'calculationFunction',  // Your function ID
-          payload
+          'wolframCalculator',  // Your Appwrite function ID
+          { 
+            query: query,
+            operation: this.operation,
+            format: 'mathml' // Request format (can be plain, mathml, etc.)
+          }
         );
         
         // Process the result
         if (result && result.response) {
           const data = JSON.parse(result.response);
+          
+          // Update the view with the results
           this.result = data.result || 'No result returned';
           this.steps = data.steps || '';
           this.plot = data.plot || '';
           
-          // Save calculation if logged in
+          // Save calculation history for logged-in users
           if (this.isLoggedIn) {
             await appwriteService.saveCalculation(
               this.userId,
@@ -267,11 +288,11 @@ export default {
   mounted() {
     this.checkSession();
     
-    // Add this to initialize the math input after component is mounted
-    // We need to wait for any external math libraries to load
+    // Load and initialize MathQuill
     this.$nextTick(() => {
-      // Load MathQuill if it's not already loaded
+      // Check if MathQuill is already loaded
       if (!window.MathQuill) {
+        // Create script element for MathQuill
         const mqScript = document.createElement('script');
         mqScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.js';
         mqScript.onload = () => {
@@ -279,7 +300,7 @@ export default {
         };
         document.head.appendChild(mqScript);
         
-        // Also load the CSS
+        // Load MathQuill CSS
         const mqStyle = document.createElement('link');
         mqStyle.rel = 'stylesheet';
         mqStyle.href = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.css';
