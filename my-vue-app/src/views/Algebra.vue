@@ -216,7 +216,7 @@ export default {
           return input;
       }
     },
-    // Calculate using Wolfram Alpha Quick Calculation API
+    // Calculate using the Vercel serverless function
     async calculate() {
       if (!this.mathField) {
         console.error('Math input not initialized');
@@ -239,21 +239,16 @@ export default {
         // Build the Wolfram Alpha query
         const query = this.buildWolframQuery(input, this.operation);
 
-        // Replace 'YOUR_WOLFRAM_APP_ID' with your actual Wolfram Alpha App ID
-        const wolframAppId = 'JH52EH-UAKWTEXGXQ';
-        const wolframApiUrl = `http://api.wolframalpha.com/v1/result?i=${encodeURIComponent(query)}&appid=${wolframAppId}`;
-
-        // Call Wolfram Alpha Quick Calculation API
-        const response = await axios.get(wolframApiUrl);
+        // Call the Vercel serverless function
+        const response = await axios.post('/api/wolfram', {
+          query,
+        });
 
         // Process the result
         if (response.data) {
-          // The quick calculation API returns plain text, so we can directly use it
           this.result = response.data;
-
-          // Since the quick calculation API doesn't provide steps or plots, we leave these empty
-          this.steps = '';
-          this.plot = '';
+          this.steps = ''; // Quick calculation API doesn't provide steps
+          this.plot = ''; // Quick calculation API doesn't provide plots
 
           // Save calculation history for logged-in users
           if (this.isLoggedIn) {
