@@ -1,31 +1,42 @@
 // src/store/index.js
 import { createStore } from 'vuex';
+import { account } from '@/config/appwrite';
 
 export default createStore({
   state: {
-    currentUser: null, // Stores the logged-in user's data
+    currentUser: null,
   },
   mutations: {
-    // Updates the current user in the state
     setCurrentUser(state, user) {
       state.currentUser = user;
     },
   },
   actions: {
-    // Fetches the current user from Appwrite and updates the state
     async fetchCurrentUser({ commit }) {
       try {
-        const user = await account.get(); // Fetch user from Appwrite
-        commit('setCurrentUser', user); // Update the state
+        const user = await account.get();
+        commit('setCurrentUser', user);
+        return user;
       } catch (error) {
         console.error('Failed to fetch current user:', error);
+        commit('setCurrentUser', null);
+        return null;
       }
     },
+    async updateUserState({ commit }, user) {
+      commit('setCurrentUser', user);
+    },
+    async clearUserState({ commit }) {
+      commit('setCurrentUser', null);
+    }
   },
   getters: {
-    // Optional: A getter to easily access the current user
-    currentUser(state) {
-      return state.currentUser;
-    },
+    currentUser: state => state.currentUser,
+    isLoggedIn: state => !!state.currentUser,
+    userId: state => {
+      if (!state.currentUser) return null;
+      return state.currentUser.user_id || state.currentUser.$id || 
+        (state.currentUser.userData && state.currentUser.userData.user_id);
+    }
   },
 });

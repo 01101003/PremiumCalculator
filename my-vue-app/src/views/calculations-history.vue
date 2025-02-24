@@ -48,54 +48,70 @@
     </div>
   </template>
   
-  <script>
-  import { databases } from '@/config/appwrite';
-  
-  export default {
-    name: 'CalculationsHistory',
-    data() {
-      return {
-        calculations: [],
-        isLoading: true,
-      };
+  // In calculations-history.vue - update the component
+<script>
+import { appwriteService } from '@/config/appwrite';
+
+export default {
+  name: 'CalculationsHistory',
+  data() {
+    return {
+      calculations: [],
+      isLoading: true,
+    };
+  },
+  computed: {
+    userId() {
+      // More robust way to get user ID that works with both auth models
+      const user = this.$store.state.currentUser;
+      if (!user) return null;
+      
+      // Try different properties since the user object structure might vary
+      return user.user_id || user.$id || (user.userData && user.userData.user_id);
     },
-    computed: {
-      userId() {
-        return this.$store.state.currentUser?.$id;
-      },
-    },
-    async mounted() {
-      if (this.userId) {
-        await this.fetchCalculations();
+    isLoggedIn() {
+      return !!this.userId;
+    }
+  },
+  watch: {
+    // Add watcher to detect when user state changes
+    userId(newVal) {
+      if (newVal) {
+        this.fetchCalculations();
+      } else {
+        // Clear calculations if user logs out
+        this.calculations = [];
       }
-      this.isLoading = false;
-    },
-    methods: {
-      async fetchCalculations() {
-        try {
-          const response = await databases.listDocuments(
-            process.env.VITE_APPWRITE_DATABASE,
-            process.env.VITE_APPWRITE_CALCULATIONS_COLLECTION,
-            [
-              databases.Query.equal('user_id', this.userId),
-              databases.Query.orderDesc('timestamp'),
-            ]
-          );
-  
-          this.calculations = response.documents;
-        } catch (error) {
-          console.error('Failed to fetch calculations:', error);
-          alert('Failed to fetch calculations. Please try again later.');
-        }
-      },
-      formatDate(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleString();
-      },
-    },
-  };
-  </script>
-  
+    }
+  },
+  async mounted() {
+    if (this.userId) {
+      await this.fetchCalculations();
+    }
+    this.isLoading = false;
+  },
+  methods: {
+    async fetchCalculations() {
+      if (!this.userId) {
+        this.calculations = [];
+        return;
+      }
+      
+      try {
+        this.isLoading = true;
+        const response = await appwriteService.getUserCalculations(this.userId);
+        this.calculations = response.documents || [];
+      } catch (error) {
+        console.error('Failed to fetch calculations:', error);
+        // More user-friendly error handling
+        this.calculations = [];
+      } finally {
+        this.isLoading = false;
+      }
+    }
+  }
+};
+</script>
   <style>
   /* Custom font for the "Press Start 2P" font */
   .font-press-start {
