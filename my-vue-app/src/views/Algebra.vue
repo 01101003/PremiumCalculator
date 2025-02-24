@@ -2,7 +2,7 @@
   <div class="algebra-view">
     <div class="container">
       <h2>ADVANCED ALGEBRA CALCULATOR</h2>
-      
+
       <div class="calculator-section">
         <div class="input-section">
           <select v-model="operation">
@@ -16,21 +16,21 @@
           <div id="math-input" ref="mathInput"></div>
           <button @click="calculate">Calculate</button>
         </div>
-        
+
         <div class="loading" v-show="isLoading">
           <p>Computing result...</p>
         </div>
-        
+
         <div class="result-section">
           <h3>Result:</h3>
           <div id="result" v-html="result"></div>
         </div>
-        
+
         <div class="steps-section">
           <h3>Solution Steps:</h3>
           <div id="steps" v-html="steps"></div>
         </div>
-        
+
         <div class="plot-section">
           <div id="plot" v-html="plot"></div>
         </div>
@@ -40,13 +40,14 @@
 </template>
 
 <script>
+import axios from 'axios';
 import Sidebar from '@/components/SideBar.vue';
 import { appwriteService, account } from '@/config/appwrite';
 import { mapState, mapGetters, mapActions } from 'vuex';
 
 export default {
   components: {
-    Sidebar
+    Sidebar,
   },
   data() {
     return {
@@ -64,30 +65,23 @@ export default {
       confirmPassword: '',
       fullName: '',
       authError: '',
-      isLoading: false
+      isLoading: false,
     };
   },
   computed: {
     ...mapState({
-      storeUser: state => state.currentUser
+      storeUser: (state) => state.currentUser,
     }),
-    ...mapGetters([
-      'isLoggedIn',
-      'userId'
-    ]),
+    ...mapGetters(['isLoggedIn', 'userId']),
     username() {
       return this.isLoggedIn ? this.storeUser.name : 'Guest User';
     },
     userPlan() {
       return this.isLoggedIn ? 'Premium Plan' : 'Free Plan';
-    }
+    },
   },
   methods: {
-    ...mapActions([
-      'fetchCurrentUser',
-      'updateUserState',
-      'clearUserState'
-    ]),
+    ...mapActions(['fetchCurrentUser', 'updateUserState', 'clearUserState']),
     closeModals() {
       this.showAboutUs = false;
       this.showLoginForm = false;
@@ -109,7 +103,7 @@ export default {
     async submitAuth() {
       this.authError = '';
       this.isLoading = true;
-      
+
       try {
         if (this.isSignUp) {
           if (this.password !== this.confirmPassword) {
@@ -117,27 +111,26 @@ export default {
             this.isLoading = false;
             return;
           }
-          
+
           // Create new user account
           const userData = await appwriteService.createEmailAccount(
             this.email,
             this.password,
             this.fullName || this.email.split('@')[0]
           );
-          
+
           // Update store with user data
           await this.updateUserState(userData);
         } else {
           // Login existing user
           const userData = await appwriteService.login(this.email, this.password);
-          
+
           // Update store with user data
           await this.updateUserState(userData);
         }
-        
+
         // Close the form on success
         this.closeModals();
-        
       } catch (error) {
         console.error('Authentication error:', error);
         this.authError = error.message || 'Authentication failed. Please try again.';
@@ -159,7 +152,7 @@ export default {
       try {
         // First try to get current session from Vuex store
         const currentUser = await this.fetchCurrentUser();
-        
+
         // If no user in Vuex store, try to fetch from Appwrite
         if (!currentUser) {
           const session = await account.get();
@@ -193,15 +186,15 @@ export default {
         console.error('MathQuill not loaded. Make sure to include the library.');
         return;
       }
-      
+
       const MQ = window.MathQuill.getInterface(2);
       this.mathField = MQ.MathField(this.$refs.mathInput, {
         spaceBehavesLikeTab: true,
         handlers: {
           edit: () => {
             // Optional: Handle input changes
-          }
-        }
+          },
+        },
       });
     },
     // Construct Wolfram Alpha API query based on operation type
@@ -223,18 +216,18 @@ export default {
           return input;
       }
     },
-    // Calculate using Wolfram API via Appwrite Function
+    // Calculate using Wolfram Alpha Quick Calculation API
     async calculate() {
       if (!this.mathField) {
         console.error('Math input not initialized');
         return;
       }
-      
+
       this.isLoading = true;
-      
+
       try {
         const input = this.mathField.latex(); // Get LaTeX from the editor
-        
+
         // Restrict premium features for non-logged in users
         const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
         if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
@@ -242,29 +235,26 @@ export default {
           this.isLoading = false;
           return;
         }
-        
+
         // Build the Wolfram Alpha query
         const query = this.buildWolframQuery(input, this.operation);
-        
-        // Call Appwrite function that interfaces with Wolfram API
-        const result = await appwriteService.executeFunction(
-          'wolframCalculator',  // Your Appwrite function ID
-          { 
-            query: query,
-            operation: this.operation,
-            format: 'mathml' // Request format (can be plain, mathml, etc.)
-          }
-        );
-        
+
+        // Replace 'YOUR_WOLFRAM_APP_ID' with your actual Wolfram Alpha App ID
+        const wolframAppId = 'JH52EH-UAKWTEXGXQ';
+        const wolframApiUrl = `http://api.wolframalpha.com/v1/result?i=${encodeURIComponent(query)}&appid=${wolframAppId}`;
+
+        // Call Wolfram Alpha Quick Calculation API
+        const response = await axios.get(wolframApiUrl);
+
         // Process the result
-        if (result && result.response) {
-          const data = JSON.parse(result.response);
-          
-          // Update the view with the results
-          this.result = data.result || 'No result returned';
-          this.steps = data.steps || '';
-          this.plot = data.plot || '';
-          
+        if (response.data) {
+          // The quick calculation API returns plain text, so we can directly use it
+          this.result = response.data;
+
+          // Since the quick calculation API doesn't provide steps or plots, we leave these empty
+          this.steps = '';
+          this.plot = '';
+
           // Save calculation history for logged-in users
           if (this.isLoggedIn) {
             await appwriteService.saveCalculation(
@@ -283,11 +273,11 @@ export default {
       } finally {
         this.isLoading = false;
       }
-    }
+    },
   },
   mounted() {
     this.checkSession();
-    
+
     // Load and initialize MathQuill
     this.$nextTick(() => {
       // Check if MathQuill is already loaded
@@ -299,7 +289,7 @@ export default {
           this.initMathInput();
         };
         document.head.appendChild(mqScript);
-        
+
         // Load MathQuill CSS
         const mqStyle = document.createElement('link');
         mqStyle.rel = 'stylesheet';
@@ -309,7 +299,7 @@ export default {
         this.initMathInput();
       }
     });
-  }
+  },
 };
 </script>
 
@@ -331,12 +321,12 @@ export default {
   background: white;
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
 .algebra-view h2 {
   text-align: center;
-  color: #8B4513;
+  color: #8b4513;
   margin-bottom: 30px;
 }
 
@@ -417,7 +407,7 @@ export default {
 .algebra-view .plot-section img {
   max-width: 100%;
   border-radius: 5px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .algebra-view .mq-editable-field {
@@ -426,7 +416,7 @@ export default {
 }
 
 .algebra-view .mq-editable-field.mq-focused {
-  box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
   border-color: #ff6b6b !important;
 }
 
