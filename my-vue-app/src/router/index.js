@@ -10,6 +10,7 @@ import dismath from '@/views/dismath.vue';
 import numbers from '@/views/numbers.vue';
 import cheatsheet from '@/views/cheatsheet.vue';
 import AIs from '@/views/AI.vue';
+import CalculationsHistory from '@/views/calculations-history.vue';
 
 
 
@@ -80,6 +81,12 @@ const routes = [
   path: '/AI',
   name: 'AI',
   component: AIs
+}
+,
+{
+  path: '/calculations-history',
+  name: 'CalculationsHistory',
+  component: CalculationsHistory,
 }
 ];
 
