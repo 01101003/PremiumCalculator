@@ -181,27 +181,33 @@ export const appwriteService = {
     // Save calculation
     async saveCalculation(userId, calculationType, input, result) {
         try {
-            if (!userId || !calculationType || !input || result === undefined) {
-                throw new Error('Missing required fields for calculation');
+          if (!userId || !calculationType || !input || result === undefined) {
+            throw new Error('Missing required fields for calculation');
+          }
+      
+          // Ensure userId is an integer
+          const userIdInt = parseInt(userId, 10);
+          if (isNaN(userIdInt)) {
+            throw new Error('Invalid user ID format. User ID must be an integer.');
+          }
+      
+          return await databases.createDocument(
+            DATABASE_ID,
+            COLLECTIONS.CALCULATIONS,
+            ID.unique(),
+            {
+              user_id: userIdInt, // Use the parsed integer
+              type: calculationType,
+              input,
+              result,
+              timestamp: new Date().toISOString()
             }
-
-            return await databases.createDocument(
-                DATABASE_ID,
-                COLLECTIONS.CALCULATIONS,
-                ID.unique(),
-                {
-                    user_id: userId,
-                    type: calculationType,
-                    input,
-                    result,
-                    timestamp: new Date().toISOString()
-                }
-            );
+          );
         } catch (error) {
-            console.error('Error saving calculation:', error);
-            throw new Error(`Failed to save calculation: ${error.message}`);
+          console.error('Error saving calculation:', error);
+          throw new Error(`Failed to save calculation: ${error.message}`);
         }
-    },
+      },
 
     // Get user calculations
     async getUserCalculations(userId) {

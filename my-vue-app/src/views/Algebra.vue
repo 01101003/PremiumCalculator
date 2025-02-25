@@ -252,8 +252,14 @@ export default {
 
           // Save calculation history for logged-in users
           if (this.isLoggedIn) {
+            // Ensure userId is an integer
+            const userIdInt = parseInt(this.userId, 10);
+            if (isNaN(userIdInt)) {
+              throw new Error('Invalid user ID format. User ID must be an integer.');
+            }
+
             await appwriteService.saveCalculation(
-              this.userId,
+              userIdInt, // Pass the integer userId
               this.operation,
               input,
               this.result
