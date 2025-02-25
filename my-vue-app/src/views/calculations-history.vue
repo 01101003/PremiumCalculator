@@ -48,86 +48,62 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useStore } from 'vuex';
 import { appwriteService } from '@/config/appwrite';
 
-export default {
-  name: 'CalculationsHistory',
-  data() {
-    return {
-      calculations: [],
-      isLoading: true,
-    };
-  },
-  computed: {
-    userId() {
-      // Use the Vuex store getter that handles all the different user ID formats
-      return this.$store.getters.userId;
-    },
-    isLoggedIn() {
-      return this.$store.getters.isLoggedIn;
-    }
-  },
-  watch: {
-    // Add watcher to detect when user state changes
-    isLoggedIn(newVal) {
-      if (newVal) {
-        this.fetchCalculations();
-      } else {
-        // Clear calculations if user logs out
-        this.calculations = [];
-      }
-    }
-  },
-  async mounted() {
-    // Check if the user is logged in
-    if (this.isLoggedIn) {
-      await this.fetchCalculations();
-    } else {
-      this.isLoading = false;
-    }
-  },
-  methods: {
-    async fetchCalculations() {
-      if (!this.userId) {
-        this.calculations = [];
-        this.isLoading = false;
-        return;
-      }
-      
-      try {
-        this.isLoading = true;
-        const response = await appwriteService.getUserCalculations(this.userId);
-        this.calculations = response.documents || [];
-        console.log('Fetched calculations:', this.calculations);
-      } catch (error) {
-        console.error('Failed to fetch calculations:', error);
-        // More user-friendly error handling
-        this.calculations = [];
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    formatDate(timestamp) {
-      if (!timestamp) return 'Unknown date';
-      
-      try {
-        const date = new Date(timestamp);
-        return new Intl.DateTimeFormat('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).format(date);
-      } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Invalid date';
-      }
-    }
+const store = useStore();
+const calculations = ref([]);
+
+// Fetch calculations on mount
+const fetchCalculations = async () => {
+  const userId = store.getters.userId;
+  if (!userId) return;
+
+  try {
+    const response = await appwriteService.getUserCalculations(userId);
+    calculations.value = response.documents;
+  } catch (error) {
+    console.error('Error fetching calculations:', error);
   }
 };
+
+onMounted(fetchCalculations);
 </script>
+
+<template>
+  <div class="calculation-history">
+    <h2>Calculation History</h2>
+    <ul v-if="calculations.length">
+      <li v-for="calc in calculations" :key="calc.$id">
+        <strong>{{ calc.type }}:</strong> {{ calc.input }} = {{ calc.result }}
+        <small>({{ new Date(calc.timestamp).toLocaleString() }})</small>
+      </li>
+    </ul>
+    <p v-else>No calculations found.</p>
+  </div>
+</template>
+
+<style scoped>
+.calculation-history {
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+small {
+  color: gray;
+}
+</style>
+
 
 <style>
 /* Custom font for the "Press Start 2P" font */
