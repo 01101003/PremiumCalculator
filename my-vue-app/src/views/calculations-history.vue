@@ -30,15 +30,9 @@ const fetchCalculations = async () => {
       throw new Error('Invalid user ID format');
     }
     
-    // Use the Query.equal method to properly format the query
-    const response = await appwriteService.databases.listDocuments(
-      appwriteService.DATABASE_ID,
-      appwriteService.COLLECTIONS.CALCULATIONS,
-      [
-        Query.equal('user_id', userIdInt),
-        Query.orderDesc('timestamp')
-      ]
-    );
+    // Fix: Use the getUserCalculations method from appwriteService with integer userId
+    // This method is defined in your appwrite.js file
+    const response = await appwriteService.getUserCalculations(userIdInt);
     
     calculations.value = response.documents;
     loading.value = false;

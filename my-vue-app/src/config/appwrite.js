@@ -210,25 +210,34 @@ export const appwriteService = {
       },
 
     // Get user calculations
-    async getUserCalculations(userId) {
-        try {
-            if (!userId) {
-                throw new Error('User ID is required');
-            }
+    // Update this method in your appwrite.js file
 
-            return await databases.listDocuments(
-                DATABASE_ID,
-                COLLECTIONS.CALCULATIONS,
-                [
-                    Query.equal('user_id', userId),
-                    Query.orderDesc('timestamp')
-                ]
-            );
-        } catch (error) {
-            console.error('Error fetching calculations:', error);
-            throw new Error(`Failed to fetch calculations: ${error.message}`);
+// Get user calculations
+async getUserCalculations(userId) {
+    try {
+        if (!userId) {
+            throw new Error('User ID is required');
         }
-    },
+
+        // Ensure userId is an integer
+        const userIdInt = parseInt(userId, 10);
+        if (isNaN(userIdInt)) {
+            throw new Error('Invalid user ID format. User ID must be an integer.');
+        }
+
+        return await databases.listDocuments(
+            DATABASE_ID,
+            COLLECTIONS.CALCULATIONS,
+            [
+                Query.equal('user_id', userIdInt), // Pass as integer
+                Query.orderDesc('timestamp')
+            ]
+        );
+    } catch (error) {
+        console.error('Error fetching calculations:', error);
+        throw new Error(`Failed to fetch calculations: ${error.message}`);
+    }
+},
 
     // Get user by provider ID
     async getUserByProviderId(provider, providerUserId) {
