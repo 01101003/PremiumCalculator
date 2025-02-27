@@ -21,8 +21,14 @@ const fetchCalculations = async () => {
   try {
     loading.value = true;
     
+    // Ensure we're passing an integer user ID
+    const userIdInt = parseInt(userId, 10);
+    if (isNaN(userIdInt)) {
+      throw new Error('Invalid user ID format');
+    }
+    
     // Use the helper method from appwriteService to handle the ID conversion
-    const response = await appwriteService.getUserCalculations(userId);
+    const response = await appwriteService.getUserCalculations(userIdInt);
     
     calculations.value = response.documents;
     loading.value = false;

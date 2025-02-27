@@ -217,64 +217,65 @@ export default {
       }
     },
     // Calculate using the Vercel serverless function
-    async calculate() {
-      if (!this.mathField) {
-        console.error('Math input not initialized');
-        return;
-      }
+   // Calculate using the Vercel serverless function
+async calculate() {
+  if (!this.mathField) {
+    console.error('Math input not initialized');
+    return;
+  }
 
-      this.isLoading = true;
+  this.isLoading = true;
 
-      try {
-        const input = this.mathField.latex(); // Get LaTeX from the editor
+  try {
+    const input = this.mathField.latex(); // Get LaTeX from the editor
 
-        // Restrict premium features for non-logged in users
-        const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
-        if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
-          alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
-          this.isLoading = false;
-          return;
-        }
+    // Restrict premium features for non-logged in users
+    const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
+    if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
+      alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
+      this.isLoading = false;
+      return;
+    }
 
-        // Build the Wolfram Alpha query
-        const query = this.buildWolframQuery(input, this.operation);
+    // Build the Wolfram Alpha query
+    const query = this.buildWolframQuery(input, this.operation);
 
-        // Call the Vercel serverless function
-        const response = await axios.post('/api/wolfram', {
-          query,
-        });
+    // Call the Vercel serverless function
+    const response = await axios.post('/api/wolfram', {
+      query,
+    });
 
-        // Process the result
-        if (response.data) {
-          this.result = response.data;
-          this.steps = ''; // Quick calculation API doesn't provide steps
-          this.plot = ''; // Quick calculation API doesn't provide plots
+    // Process the result
+    if (response.data) {
+      this.result = response.data;
+      this.steps = ''; // Quick calculation API doesn't provide steps
+      this.plot = ''; // Quick calculation API doesn't provide plots
 
-          // Save calculation history for logged-in users
-          if (this.isLoggedIn) {
-            // Ensure userId is an integer
-            const userIdInt = parseInt(this.userId, 10);
-            if (isNaN(userIdInt)) {
-              throw new Error('Invalid user ID format. User ID must be an integer.');
-            }
-
-            await appwriteService.saveCalculation(
-              this.userId, 
-              this.operation,
-              input,
-              this.result
-            );
-          }
+      // Save calculation history for logged-in users
+      if (this.isLoggedIn && this.userId) {
+        // Ensure userId is an integer before saving
+        const userIdInt = parseInt(this.userId, 10);
+        if (isNaN(userIdInt)) {
+          console.error('Invalid user ID format for saving calculation');
         } else {
-          this.result = 'Error processing calculation';
+          await appwriteService.saveCalculation(
+            userIdInt, 
+            this.operation,
+            input,
+            this.result
+          );
         }
-      } catch (error) {
-        console.error('Calculation error:', error);
-        this.result = `Error: ${error.message || 'Unknown error'}`;
-      } finally {
-        this.isLoading = false;
       }
-    },
+    } else {
+      this.result = 'Error processing calculation';
+    }
+  } catch (error) {
+    console.error('Calculation error:', error);
+    this.result = `Error: ${error.message || 'Unknown error'}`;
+  } finally {
+    this.isLoading = false;
+  }
+},
   },
   mounted() {
     this.checkSession();
