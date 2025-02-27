@@ -38,6 +38,8 @@ export const appwriteService = {
         }
     },
     ensureIntegerId(userId) {
+        console.log('ensureIntegerId called with:', userId, typeof userId);
+        
         if (userId === null || userId === undefined) {
             throw new Error('User ID is required');
         }
@@ -53,6 +55,7 @@ export const appwriteService = {
             throw new Error('Invalid user ID format. User ID must be an integer.');
         }
         
+        console.log('ensureIntegerId returning:', userIdInt, typeof userIdInt);
         return userIdInt;
     },
 
@@ -111,6 +114,8 @@ export const appwriteService = {
     // Create new user account (simplified without cleanup logic)
     async createEmailAccount(email, password, name) {
         try {
+            console.log('Creating new account for:', email, name);
+            
             // Create a valid ID for the auth account (must meet Appwrite's requirements)
             const uniqueId = ID.unique();
             
@@ -119,16 +124,22 @@ export const appwriteService = {
             
             // Generate the sequential user ID for our custom users collection
             const userId = await this.generateUserId();
+            console.log('Generated userId:', userId, typeof userId);
             
             // Create the user document
-            await this.createUserDocument(userId, email, name);
+            const userDoc = await this.createUserDocument(userId, email, name);
+            console.log('Created user document:', userDoc);
 
             // Create auth credentials
-            await this.createAuthCredentials(userId, 'email', uniqueId);
+            const authCreds = await this.createAuthCredentials(userId, 'email', uniqueId);
+            console.log('Created auth credentials:', authCreds);
 
             // Create a session
-            const session = await account.createEmailPasswordSession(email, password); // Fixed: Use createEmailPasswordSession
+            const session = await account.createEmailPasswordSession(email, password);
             const userData = await this.getUserByProviderId('email', uniqueId);
+            
+            console.log('Session created:', session);
+            console.log('User data retrieved:', userData);
 
             return { ...session, ...userData };
         } catch (error) {
@@ -140,18 +151,25 @@ export const appwriteService = {
     // Login with email
     async login(email, password) {
         try {
+            console.log('Attempting login for email:', email);
+            
             if (!email || !password) {
                 throw new Error('Email and password are required');
             }
 
-            const session = await account.createEmailPasswordSession(email, password); // Fixed: Use createEmailPasswordSession
+            const session = await account.createEmailPasswordSession(email, password);
+            console.log('Login session created:', session);
+            
             const userData = await this.getUserByProviderId('email', session.userId);
+            console.log('User data from provider ID:', userData);
 
             if (!userData) {
                 throw new Error('User data not found');
             }
 
             await this.updateLastLogin(userData.user_id, 'email', session.userId);
+            console.log('Last login updated, returning user data with user_id:', userData.user_id);
+            
             return { ...session, ...userData };
         } catch (error) {
             console.error('Login failed:', error);
@@ -199,14 +217,17 @@ export const appwriteService = {
     // Save calculation
     async saveCalculation(userId, calculationType, input, result) {
         try {
+            console.log('saveCalculation called with userId:', userId, typeof userId);
+            
             if (!userId || !calculationType || !input || result === undefined) {
                 throw new Error('Missing required fields for calculation');
             }
             
             // Use the helper method to ensure userId is an integer
             const userIdInt = this.ensureIntegerId(userId);
+            console.log('userId after conversion:', userIdInt, typeof userIdInt);
             
-            return await databases.createDocument(
+            const saveResult = await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.CALCULATIONS,
                 ID.unique(),
@@ -218,37 +239,45 @@ export const appwriteService = {
                     timestamp: new Date().toISOString()
                 }
             );
+            
+            console.log('Calculation saved successfully:', saveResult);
+            return saveResult;
         } catch (error) {
             console.error('Error saving calculation:', error);
             throw new Error(`Failed to save calculation: ${error.message}`);
         }
     },
     // Get user calculations
-    // Update this method in your appwrite.js file
-
-// Get user calculations
-async getUserCalculations(userId) {
-    try {
-        // Use the helper method to ensure userId is an integer
-        const userIdInt = this.ensureIntegerId(userId);
-        
-        return await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTIONS.CALCULATIONS,
-            [
-                Query.equal('user_id', userIdInt),
-                Query.orderDesc('timestamp')
-            ]
-        );
-    } catch (error) {
-        console.error('Error fetching calculations:', error);
-        throw new Error(`Failed to fetch calculations: ${error.message}`);
-    }
-},
+    async getUserCalculations(userId) {
+        try {
+            console.log('getUserCalculations called with userId:', userId, typeof userId);
+            
+            // Use the helper method to ensure userId is an integer
+            const userIdInt = this.ensureIntegerId(userId);
+            console.log('userId after conversion:', userIdInt, typeof userIdInt);
+            
+            const calculations = await databases.listDocuments(
+                DATABASE_ID,
+                COLLECTIONS.CALCULATIONS,
+                [
+                    Query.equal('user_id', userIdInt),
+                    Query.orderDesc('timestamp')
+                ]
+            );
+            
+            console.log('Retrieved calculations:', calculations.total);
+            return calculations;
+        } catch (error) {
+            console.error('Error fetching calculations:', error);
+            throw new Error(`Failed to fetch calculations: ${error.message}`);
+        }
+    },
 
     // Get user by provider ID
     async getUserByProviderId(provider, providerUserId) {
         try {
+            console.log('getUserByProviderId called with:', provider, providerUserId);
+            
             if (!provider || !providerUserId) {
                 throw new Error('Provider and provider user ID are required');
             }
@@ -261,20 +290,28 @@ async getUserCalculations(userId) {
                     Query.equal('provider_user_id', providerUserId)
                 ]
             );
+            
+            console.log('Credentials found:', credentials.total);
 
             if (credentials.total > 0) {
                 const userId = credentials.documents[0].user_id;
+                console.log('Found userId in credentials:', userId, typeof userId);
+                
                 const users = await databases.listDocuments(
                     DATABASE_ID,
                     COLLECTIONS.USERS,
                     [Query.equal('user_id', userId)]
                 );
+                
+                console.log('Users found with this userId:', users.total);
 
                 if (users.total > 0) {
+                    console.log('Returning user document with user_id:', users.documents[0].user_id);
                     return users.documents[0];
                 }
             }
-
+            
+            console.log('No user found with this provider ID');
             return null;
         } catch (error) {
             console.error('Error fetching user by provider ID:', error);
@@ -298,15 +335,9 @@ async getUserCalculations(userId) {
             throw new Error(`Function execution failed: ${error.message}`);
         }
     }
-}
-
-;
+};
 
 // Optional: Add event listeners for debugging
 client.subscribe('*', response => {
     console.log('Appwrite event received:', response);
 });
-
-
-
-

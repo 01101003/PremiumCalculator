@@ -34,6 +34,14 @@
         <div class="plot-section">
           <div id="plot" v-html="plot"></div>
         </div>
+
+        <!-- Debug info panel -->
+        <div class="debug-info" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+          <h4>Debug Info:</h4>
+          <p>Logged in: {{ isLoggedIn }}</p>
+          <p>User ID: {{ userId }} (Type: {{ typeof userId }})</p>
+          <p>Username: {{ username }}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -112,6 +120,7 @@ export default {
             return;
           }
 
+          console.log('Attempting to create new account');
           // Create new user account
           const userData = await appwriteService.createEmailAccount(
             this.email,
@@ -119,11 +128,24 @@ export default {
             this.fullName || this.email.split('@')[0]
           );
 
+          console.log('Authentication successful, userData:', userData);
+          // Verify userData has user_id
+          if (!userData.user_id) {
+            console.error('userData is missing user_id property:', userData);
+          }
+
           // Update store with user data
           await this.updateUserState(userData);
         } else {
+          console.log('Attempting to login');
           // Login existing user
           const userData = await appwriteService.login(this.email, this.password);
+
+          console.log('Authentication successful, userData:', userData);
+          // Verify userData has user_id
+          if (!userData.user_id) {
+            console.error('userData is missing user_id property:', userData);
+          }
 
           // Update store with user data
           await this.updateUserState(userData);
@@ -140,6 +162,7 @@ export default {
     },
     async handleLogout() {
       try {
+        console.log('Logging out user');
         await appwriteService.logout();
         await this.clearUserState();
       } catch (error) {
@@ -150,30 +173,37 @@ export default {
     },
     async checkSession() {
       try {
+        console.log('Checking for active session');
         // First try to get current session from Vuex store
         const currentUser = await this.fetchCurrentUser();
-
+        console.log('Session check - currentUser:', currentUser);
+        
         // If no user in Vuex store, try to fetch from Appwrite
         if (!currentUser) {
           const session = await account.get();
-          if (session.$id) {
+          console.log('Session from Appwrite:', session);
+          if (session && session.$id) {
             // Get full user data from our custom users collection
             const userData = await this.getUserData(session.$id);
+            console.log('User data from custom collection:', userData);
             if (userData) {
               // Update Vuex store with user data
               await this.updateUserState({ ...session, ...userData });
+              console.log('Updated user state with:', { ...session, ...userData });
             }
           }
         }
       } catch (error) {
-        console.log('No active session:', error);
+        console.error('Session check error:', error);
         // Clear user state in Vuex store
         await this.clearUserState();
       }
     },
     async getUserData(appwriteUserId) {
       try {
+        console.log('Getting user data for Appwrite user ID:', appwriteUserId);
         const userData = await appwriteService.getUserByProviderId('email', appwriteUserId);
+        console.log('User data retrieved:', userData);
         return userData;
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -217,67 +247,81 @@ export default {
       }
     },
     // Calculate using the Vercel serverless function
-   // Calculate using the Vercel serverless function
-async calculate() {
-  if (!this.mathField) {
-    console.error('Math input not initialized');
-    return;
-  }
-
-  this.isLoading = true;
-
-  try {
-    const input = this.mathField.latex(); // Get LaTeX from the editor
-
-    // Restrict premium features for non-logged in users
-    const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
-    if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
-      alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
-      this.isLoading = false;
-      return;
-    }
-
-    // Build the Wolfram Alpha query
-    const query = this.buildWolframQuery(input, this.operation);
-
-    // Call the Vercel serverless function
-    const response = await axios.post('/api/wolfram', {
-      query,
-    });
-
-    // Process the result
-    if (response.data) {
-      this.result = response.data;
-      this.steps = ''; // Quick calculation API doesn't provide steps
-      this.plot = ''; // Quick calculation API doesn't provide plots
-
-      // Save calculation history for logged-in users
-      if (this.isLoggedIn && this.userId) {
-        // Ensure userId is an integer before saving
-        const userIdInt = parseInt(this.userId, 10);
-        if (isNaN(userIdInt)) {
-          console.error('Invalid user ID format for saving calculation');
-        } else {
-          await appwriteService.saveCalculation(
-            userIdInt, 
-            this.operation,
-            input,
-            this.result
-          );
-        }
+    async calculate() {
+      if (!this.mathField) {
+        console.error('Math input not initialized');
+        return;
       }
-    } else {
-      this.result = 'Error processing calculation';
-    }
-  } catch (error) {
-    console.error('Calculation error:', error);
-    this.result = `Error: ${error.message || 'Unknown error'}`;
-  } finally {
-    this.isLoading = false;
-  }
-},
+
+      this.isLoading = true;
+
+      try {
+        const input = this.mathField.latex(); // Get LaTeX from the editor
+
+        // Restrict premium features for non-logged in users
+        const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
+        if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
+          alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
+          this.isLoading = false;
+          return;
+        }
+
+        // Build the Wolfram Alpha query
+        const query = this.buildWolframQuery(input, this.operation);
+
+        // Call the Vercel serverless function
+        const response = await axios.post('/api/wolfram', {
+          query,
+        });
+
+        // Process the result
+        if (response.data) {
+          this.result = response.data;
+          this.steps = ''; // Quick calculation API doesn't provide steps
+          this.plot = ''; // Quick calculation API doesn't provide plots
+
+          // Save calculation history for logged-in users
+          console.log('About to save calculation - userid state:', {
+            isLoggedIn: this.isLoggedIn,
+            userId: this.userId,
+            userIdType: typeof this.userId
+          });
+
+          if (this.isLoggedIn && this.userId) {
+            // Ensure userId is an integer before saving
+            const userIdInt = parseInt(this.userId, 10);
+            if (isNaN(userIdInt)) {
+              console.error('Invalid user ID format for saving calculation');
+            } else {
+              console.log('Saving calculation with userId:', userIdInt);
+              try {
+                const result = await appwriteService.saveCalculation(
+                  userIdInt, 
+                  this.operation,
+                  input,
+                  this.result
+                );
+                console.log('Calculation saved successfully:', result);
+              } catch (error) {
+                console.error('Error saving calculation:', error);
+              }
+            }
+          } else {
+            console.log('Not saving calculation - not logged in or no userId');
+          }
+        } else {
+          this.result = 'Error processing calculation';
+        }
+      } catch (error) {
+        console.error('Calculation error:', error);
+        this.result = `Error: ${error.message || 'Unknown error'}`;
+      } finally {
+        this.isLoading = false;
+      }
+    },
   },
   mounted() {
+    console.log('Algebra component mounted, checking session...');
     this.checkSession();
 
     // Load and initialize MathQuill
@@ -431,5 +475,10 @@ async calculate() {
   padding: 5px;
   border-radius: 5px;
   min-height: 70px;
+}
+
+.debug-info {
+  font-family: monospace;
+  font-size: 12px;
 }
 </style>
