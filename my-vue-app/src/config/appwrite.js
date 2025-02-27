@@ -37,6 +37,24 @@ export const appwriteService = {
             throw new Error(`Failed to generate user ID: ${error.message}`);
         }
     },
+    ensureIntegerId(userId) {
+        if (userId === null || userId === undefined) {
+            throw new Error('User ID is required');
+        }
+        
+        // If already a number, return it
+        if (typeof userId === 'number') {
+            return userId;
+        }
+        
+        // Try to parse as integer
+        const userIdInt = parseInt(userId, 10);
+        if (isNaN(userIdInt)) {
+            throw new Error('Invalid user ID format. User ID must be an integer.');
+        }
+        
+        return userIdInt;
+    },
 
     // Create new user document
     async createUserDocument(userId, email, name, profileImage = null) {
@@ -181,55 +199,44 @@ export const appwriteService = {
     // Save calculation
     async saveCalculation(userId, calculationType, input, result) {
         try {
-          if (!userId || !calculationType || !input || result === undefined) {
-            throw new Error('Missing required fields for calculation');
-          }
-      
-          // Ensure userId is an integer
-          const userIdInt = parseInt(userId, 10);
-          if (isNaN(userIdInt)) {
-            throw new Error('Invalid user ID format. User ID must be an integer.');
-          }
-      
-          return await databases.createDocument(
-            DATABASE_ID,
-            COLLECTIONS.CALCULATIONS,
-            ID.unique(),
-            {
-              user_id: userIdInt, // Use the parsed integer
-              type: calculationType,
-              input,
-              result,
-              timestamp: new Date().toISOString()
+            if (!userId || !calculationType || !input || result === undefined) {
+                throw new Error('Missing required fields for calculation');
             }
-          );
+            
+            // Use the helper method to ensure userId is an integer
+            const userIdInt = this.ensureIntegerId(userId);
+            
+            return await databases.createDocument(
+                DATABASE_ID,
+                COLLECTIONS.CALCULATIONS,
+                ID.unique(),
+                {
+                    user_id: userIdInt,
+                    type: calculationType,
+                    input,
+                    result,
+                    timestamp: new Date().toISOString()
+                }
+            );
         } catch (error) {
-          console.error('Error saving calculation:', error);
-          throw new Error(`Failed to save calculation: ${error.message}`);
+            console.error('Error saving calculation:', error);
+            throw new Error(`Failed to save calculation: ${error.message}`);
         }
-      },
-
+    },
     // Get user calculations
     // Update this method in your appwrite.js file
 
 // Get user calculations
 async getUserCalculations(userId) {
     try {
-        if (!userId) {
-            throw new Error('User ID is required');
-        }
-
-        // Ensure userId is an integer
-        const userIdInt = parseInt(userId, 10);
-        if (isNaN(userIdInt)) {
-            throw new Error('Invalid user ID format. User ID must be an integer.');
-        }
-
+        // Use the helper method to ensure userId is an integer
+        const userIdInt = this.ensureIntegerId(userId);
+        
         return await databases.listDocuments(
             DATABASE_ID,
             COLLECTIONS.CALCULATIONS,
             [
-                Query.equal('user_id', userIdInt), // Pass as integer
+                Query.equal('user_id', userIdInt),
                 Query.orderDesc('timestamp')
             ]
         );
@@ -291,12 +298,15 @@ async getUserCalculations(userId) {
             throw new Error(`Function execution failed: ${error.message}`);
         }
     }
-};
+}
+
+;
 
 // Optional: Add event listeners for debugging
 client.subscribe('*', response => {
     console.log('Appwrite event received:', response);
 });
+
 
 
 

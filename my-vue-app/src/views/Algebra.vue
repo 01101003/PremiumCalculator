@@ -259,7 +259,7 @@ export default {
             }
 
             await appwriteService.saveCalculation(
-              userIdInt, // Pass the integer userId
+              this.userId, 
               this.operation,
               input,
               this.result

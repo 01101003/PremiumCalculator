@@ -5,14 +5,28 @@ import { account } from '@/config/appwrite';
 export default createStore({
   state: {
     currentUser: null,
-    userId: null, // Add a dedicated field for the user_id
+    userId: null, // Will store the integer user_id
   },
   mutations: {
     setCurrentUser(state, user) {
       state.currentUser = user;
     },
     setUserId(state, id) {
-      state.userId = id;
+      // Ensure userId is stored as an integer
+      if (id !== null && id !== undefined) {
+        // If id is a string, convert to integer
+        if (typeof id === 'string') {
+          const idInt = parseInt(id, 10);
+          if (!isNaN(idInt)) {
+            state.userId = idInt;
+            return;
+          }
+        }
+        // If id is already a number or couldn't be parsed, store as is
+        state.userId = id;
+      } else {
+        state.userId = null;
+      }
     },
   },
   actions: {
@@ -20,7 +34,6 @@ export default createStore({
       try {
         const user = await account.get();
         commit('setCurrentUser', user);
-        // Don't set userId here since this only has the Appwrite session info
         return user;
       } catch (error) {
         console.error('Failed to fetch current user:', error);
@@ -31,8 +44,10 @@ export default createStore({
     },
     async updateUserState({ commit }, userData) {
       commit('setCurrentUser', userData);
+      
       // Also set the user_id from your custom users collection
       if (userData && userData.user_id) {
+        // Ensure user_id is stored as an integer
         commit('setUserId', userData.user_id);
       }
     },
@@ -44,6 +59,6 @@ export default createStore({
   getters: {
     currentUser: state => state.currentUser,
     isLoggedIn: state => !!state.currentUser,
-    userId: state => state.userId, // Use the dedicated field
+    userId: state => state.userId,
   },
 });

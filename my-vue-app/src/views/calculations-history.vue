@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import { appwriteService } from '@/config/appwrite';
-import { Query } from 'appwrite'; // Import Query from appwrite
 
 const store = useStore();
 const calculations = ref([]);
@@ -22,17 +21,8 @@ const fetchCalculations = async () => {
   try {
     loading.value = true;
     
-    // Convert userId to integer to match the database schema
-    const userIdInt = parseInt(userId, 10);
-    
-    // Make sure it's a valid integer
-    if (isNaN(userIdInt)) {
-      throw new Error('Invalid user ID format');
-    }
-    
-    // Fix: Use the getUserCalculations method from appwriteService with integer userId
-    // This method is defined in your appwrite.js file
-    const response = await appwriteService.getUserCalculations(userIdInt);
+    // Use the helper method from appwriteService to handle the ID conversion
+    const response = await appwriteService.getUserCalculations(userId);
     
     calculations.value = response.documents;
     loading.value = false;
