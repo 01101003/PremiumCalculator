@@ -248,105 +248,76 @@ export default {
     },
     // Calculate using the Vercel serverless function
     async calculate() {
-      if (!this.mathField) {
-        console.error('Math input not initialized');
-        return;
-      }
+  if (!this.mathField) {
+    console.error('Math input not initialized');
+    return;
+  }
 
-      this.isLoading = true;
+  this.isLoading = true;
 
-      try {
-        const input = this.mathField.latex(); // Get LaTeX from the editor
+  try {
+    const input = this.mathField.latex(); // Get LaTeX from the editor
 
-        // Restrict premium features for non-logged in users
-        const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
-        if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
-          alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
-          this.isLoading = false;
-          return;
-        }
+    // Restrict premium features for non-logged in users
+    const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
+    if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
+      alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
+      this.isLoading = false;
+      return;
+    }
 
-        // Build the Wolfram Alpha query
-        const query = this.buildWolframQuery(input, this.operation);
+    // Build the Wolfram Alpha query
+    const query = this.buildWolframQuery(input, this.operation);
 
-        // Call the Vercel serverless function
-        const response = await axios.post('/api/wolfram', {
-          query,
-        });
-
-        // Process the result
-        if (response.data) {
-          this.result = response.data;
-          this.steps = ''; // Quick calculation API doesn't provide steps
-          this.plot = ''; // Quick calculation API doesn't provide plots
-
-          // Save calculation history for logged-in users
-          console.log('About to save calculation - userid state:', {
-            isLoggedIn: this.isLoggedIn,
-            userId: this.userId,
-            userIdType: typeof this.userId
-          });
-
-          if (this.isLoggedIn && this.userId) {
-            // Ensure userId is an integer before saving
-            const userIdInt = parseInt(this.userId, 10);
-            if (isNaN(userIdInt)) {
-              console.error('Invalid user ID format for saving calculation');
-            } else {
-              console.log('Saving calculation with userId:', userIdInt);
-              try {
-                const result = await appwriteService.saveCalculation(
-                  userIdInt, 
-                  this.operation,
-                  input,
-                  this.result
-                );
-                console.log('Calculation saved successfully:', result);
-              } catch (error) {
-                console.error('Error saving calculation:', error);
-              }
-            }
-          } else {
-            console.log('Not saving calculation - not logged in or no userId');
-          }
-        } else {
-          this.result = 'Error processing calculation';
-        }
-      } catch (error) {
-        console.error('Calculation error:', error);
-        this.result = `Error: ${error.message || 'Unknown error'}`;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-  },
-  mounted() {
-    console.log('Algebra component mounted, checking session...');
-    this.checkSession();
-
-    // Load and initialize MathQuill
-    this.$nextTick(() => {
-      // Check if MathQuill is already loaded
-      if (!window.MathQuill) {
-        // Create script element for MathQuill
-        const mqScript = document.createElement('script');
-        mqScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.js';
-        mqScript.onload = () => {
-          this.initMathInput();
-        };
-        document.head.appendChild(mqScript);
-
-        // Load MathQuill CSS
-        const mqStyle = document.createElement('link');
-        mqStyle.rel = 'stylesheet';
-        mqStyle.href = 'https://cdnjs.cloudflare.com/ajax/libs/mathquill/0.10.1/mathquill.min.css';
-        document.head.appendChild(mqStyle);
-      } else {
-        this.initMathInput();
-      }
+    // Call the Vercel serverless function
+    const response = await axios.post('/api/wolfram', {
+      query,
     });
-  },
-};
+
+    // Process the result
+    if (response.data) {
+      this.result = response.data;
+      this.steps = ''; // Quick calculation API doesn't provide steps
+      this.plot = ''; // Quick calculation API doesn't provide plots
+
+      // Save calculation history for logged-in users
+      console.log('About to save calculation - userid state:', {
+        isLoggedIn: this.isLoggedIn,
+        userId: this.userId,
+        userIdType: typeof this.userId
+      });
+
+      if (this.isLoggedIn && this.userId) {
+        // No need to parse userId here - we'll let the service handle the conversion
+        // The userId from Vuex should already be an integer based on the store mutations
+        console.log('Saving calculation with userId:', this.userId);
+        try {
+          const result = await appwriteService.saveCalculation(
+            this.userId, 
+            this.operation,
+            input,
+            this.result
+          );
+          console.log('Calculation saved successfully:', result);
+        } catch (error) {
+          console.error('Error saving calculation:', error);
+        }
+      } else {
+        console.log('Not saving calculation - not logged in or no userId');
+      }
+    } else {
+      this.result = 'Error processing calculation';
+    }
+  } catch (error) {
+    console.error('Calculation error:', error);
+    this.result = `Error: ${error.message || 'Unknown error'}`;
+  } finally {
+    this.isLoading = false;
+  }
+}
+    }
+  }
+;
 </script>
 
 <style scoped>
