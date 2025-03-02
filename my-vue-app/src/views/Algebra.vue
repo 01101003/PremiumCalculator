@@ -248,76 +248,79 @@ export default {
     },
     // Calculate using the Vercel serverless function
     async calculate() {
-  if (!this.mathField) {
-    console.error('Math input not initialized');
-    return;
-  }
-
-  this.isLoading = true;
-
-  try {
-    const input = this.mathField.latex(); // Get LaTeX from the editor
-
-    // Restrict premium features for non-logged in users
-    const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
-    if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
-      alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
-      this.isLoading = false;
-      return;
-    }
-
-    // Build the Wolfram Alpha query
-    const query = this.buildWolframQuery(input, this.operation);
-
-    // Call the Vercel serverless function
-    const response = await axios.post('/api/wolfram', {
-      query,
-    });
-
-    // Process the result
-    if (response.data) {
-      this.result = response.data;
-      this.steps = ''; // Quick calculation API doesn't provide steps
-      this.plot = ''; // Quick calculation API doesn't provide plots
-
-      // Save calculation history for logged-in users
-      console.log('About to save calculation - userid state:', {
-        isLoggedIn: this.isLoggedIn,
-        userId: this.userId,
-        userIdType: typeof this.userId
-      });
-
-      if (this.isLoggedIn && this.userId) {
-        // No need to parse userId here - we'll let the service handle the conversion
-        // The userId from Vuex should already be an integer based on the store mutations
-        console.log('Saving calculation with userId:', this.userId);
-        try {
-          const result = await appwriteService.saveCalculation(
-            this.userId, 
-            this.operation,
-            input,
-            this.result
-          );
-          console.log('Calculation saved successfully:', result);
-        } catch (error) {
-          console.error('Error saving calculation:', error);
-        }
-      } else {
-        console.log('Not saving calculation - not logged in or no userId');
+      if (!this.mathField) {
+        console.error('Math input not initialized');
+        return;
       }
-    } else {
-      this.result = 'Error processing calculation';
+
+      this.isLoading = true;
+
+      try {
+        const input = this.mathField.latex(); // Get LaTeX from the editor
+
+        // Restrict premium features for non-logged in users
+        const premiumOperations = ['integrate', 'derivative', 'factor', 'expand'];
+        if (!this.isLoggedIn && premiumOperations.includes(this.operation)) {
+          alert(`Please log in to use ${this.operation}. This feature is available in the Premium Plan.`);
+          this.isLoading = false;
+          return;
+        }
+
+        // Build the Wolfram Alpha query
+        const query = this.buildWolframQuery(input, this.operation);
+
+        // Call the Vercel serverless function
+        const response = await axios.post('/api/wolfram', {
+          query,
+        });
+
+        // Process the result
+        if (response.data) {
+          this.result = response.data;
+          this.steps = ''; // Quick calculation API doesn't provide steps
+          this.plot = ''; // Quick calculation API doesn't provide plots
+
+          // Save calculation history for logged-in users
+          console.log('About to save calculation - userid state:', {
+            isLoggedIn: this.isLoggedIn,
+            userId: this.userId,
+            userIdType: typeof this.userId
+          });
+
+          if (this.isLoggedIn && this.userId) {
+            // No need to parse userId here - we'll let the service handle the conversion
+            // The userId from Vuex should already be an integer based on the store mutations
+            console.log('Saving calculation with userId:', this.userId);
+            try {
+              const result = await appwriteService.saveCalculation(
+                this.userId, 
+                this.operation,
+                input,
+                this.result
+              );
+              console.log('Calculation saved successfully:', result);
+            } catch (error) {
+              console.error('Error saving calculation:', error);
+            }
+          } else {
+            console.log('Not saving calculation - not logged in or no userId');
+          }
+        } else {
+          this.result = 'Error processing calculation';
+        }
+      } catch (error) {
+        console.error('Calculation error:', error);
+        this.result = `Error: ${error.message || 'Unknown error'}`;
+      } finally {
+        this.isLoading = false;
+      }
     }
-  } catch (error) {
-    console.error('Calculation error:', error);
-    this.result = `Error: ${error.message || 'Unknown error'}`;
-  } finally {
-    this.isLoading = false;
+  },
+  mounted() {
+    this.initMathInput();
+    this.checkSession();
   }
-}
-    }
-  }
-;
+};
 </script>
 
 <style scoped>

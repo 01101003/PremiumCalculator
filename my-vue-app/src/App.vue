@@ -106,75 +106,48 @@ export default {
       this.showLoginForm = true;
       this.showOverlay = true;
     },
-    // In App.vue - modify the submitAuth method
-async submitAuth() {
-  this.authError = '';
-  this.isLoading = true;
-  
-  try {
-    if (this.isSignUp) {
-      if (this.password !== this.confirmPassword) {
-        this.authError = 'Passwords do not match!';
-        return;
+    async submitAuth() {
+      this.authError = '';
+      this.isLoading = true;
+      
+      try {
+        if (this.isSignUp) {
+          if (this.password !== this.confirmPassword) {
+            this.authError = 'Passwords do not match!';
+            return;
+          }
+          
+          // Create new user account
+          const userData = await appwriteService.createEmailAccount(
+            this.email,
+            this.password,
+            this.fullName || this.email.split('@')[0]
+          );
+          
+          this.currentUser = userData;
+          this.$store.commit('setCurrentUser', userData); // Add this line
+        } else {
+          // Login existing user
+          const userData = await appwriteService.login(this.email, this.password);
+          this.currentUser = userData;
+          this.$store.commit('setCurrentUser', userData); // Add this line
+        }
+        
+        // Close the form on success
+        this.closeModals();
+        
+      } catch (error) {
+        console.error('Authentication error:', error);
+        this.authError = error.message || 'Authentication failed. Please try again.';
+      } finally {
+        this.isLoading = false;
       }
-      
-      // Create new user account
-      const userData = await appwriteService.createEmailAccount(
-        this.email,
-        this.password,
-        this.fullName || this.email.split('@')[0]
-      );
-      
-      this.currentUser = userData;
-      this.$store.commit('setCurrentUser', userData); // Add this line
-    } else {
-      // Login existing user
-      const userData = await appwriteService.login(this.email, this.password);
-      this.currentUser = userData;
-      this.$store.commit('setCurrentUser', userData); // Add this line
-    }
-    
-    // Close the form on success
-    this.closeModals();
-    
-  } catch (error) {
-    console.error('Authentication error:', error);
-    this.authError = error.message || 'Authentication failed. Please try again.';
-  } finally {
-    this.isLoading = false;
-  }
-},
-
-// Also modify the handleLogout method
-async handleLogout() {
-  try {
-    await appwriteService.logout();
-    this.currentUser = null;
-    this.$store.commit('setCurrentUser', null); // Add this line
-  } catch (error) {
-    console.error('Logout failed:', error);
-  }
-},
-
-// And update the checkSession method
-async checkSession() {
-  try {
-    const session = await account.get();
-    if (session.$id) {
-      // Get full user data from our custom users collection
-      const userData = await this.getUserData(session.$id);
-      this.currentUser = { ...session, ...userData };
-      this.$store.commit('setCurrentUser', { ...session, ...userData }); // Add this line
-    }
-  } catch (error) {
-    console.log('No active session');
-    this.$store.commit('setCurrentUser', null); // Add this to ensure store is cleaned on error
-  }
-},
+    },
     async handleLogout() {
       try {
         await appwriteService.logout();
         this.currentUser = null;
+        this.$store.commit('setCurrentUser', null); // Add this line
       } catch (error) {
         console.error('Logout failed:', error);
       }
@@ -186,9 +159,11 @@ async checkSession() {
           // Get full user data from our custom users collection
           const userData = await this.getUserData(session.$id);
           this.currentUser = { ...session, ...userData };
+          this.$store.commit('setCurrentUser', { ...session, ...userData }); // Add this line
         }
       } catch (error) {
         console.log('No active session');
+        this.$store.commit('setCurrentUser', null); // Add this to ensure store is cleaned on error
       }
     },
     async getUserData(appwriteUserId) {
