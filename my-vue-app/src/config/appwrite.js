@@ -1,11 +1,12 @@
 // src/config/appwrite.js
 import { Client, Account, Databases, ID, Functions, Query } from 'appwrite';
 
-// Load environment variables for security (recommended for Vercel)
+// Initialize the Appwrite client
 const client = new Client()
     .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
     .setProject(import.meta.env.VITE_APPWRITE_PROJECT);
 
+// Export Appwrite services
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const functions = new Functions(client);
@@ -37,6 +38,7 @@ export const appwriteService = {
             throw new Error(`Failed to generate user ID: ${error.message}`);
         }
     },
+
     ensureIntegerId(userId) {
         console.log('ensureIntegerId called with:', userId, typeof userId);
         
@@ -111,12 +113,12 @@ export const appwriteService = {
         }
     },
 
-    // Create new user account (simplified without cleanup logic)
+    // Create new user account
     async createEmailAccount(email, password, name) {
         try {
             console.log('Creating new account for:', email, name);
             
-            // Create a valid ID for the auth account (must meet Appwrite's requirements)
+            // Create a valid ID for the auth account
             const uniqueId = ID.unique();
             
             // Create the auth account first
@@ -247,6 +249,7 @@ export const appwriteService = {
             throw new Error(`Failed to save calculation: ${error.message}`);
         }
     },
+
     // Get user calculations
     async getUserCalculations(userId) {
         try {
