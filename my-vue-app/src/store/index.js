@@ -15,25 +15,27 @@ export default createStore({
     setUserId(state, id) {
       console.log('setUserId mutation called with:', id, typeof id);
       
-      // Ensure userId is stored as an integer
+      // Always store userId as an integer in the store
       if (id !== null && id !== undefined) {
-        // If id is a string, convert to integer
-        if (typeof id === 'string') {
-          const idInt = parseInt(id, 10);
-          if (!isNaN(idInt)) {
-            console.log('Converting string id to integer:', idInt);
-            state.userId = idInt;
-            return;
+          if (typeof id === 'string') {
+              const idInt = parseInt(id, 10);
+              if (!isNaN(idInt)) {
+                  console.log('Converted string id to integer:', idInt);
+                  state.userId = idInt;
+                  return;
+              }
+          } else if (typeof id === 'number') {
+              state.userId = id;
+              return;
           }
-        }
-        // If id is already a number or couldn't be parsed, store as is
-        console.log('Setting userId directly:', id, typeof id);
-        state.userId = id;
+          
+          // If we get here, id is not valid
+          console.error('Invalid userId format:', id, typeof id);
+          state.userId = null;
       } else {
-        console.log('Setting userId to null');
-        state.userId = null;
+          state.userId = null;
       }
-    },
+  },
   },
   actions: {
     async fetchCurrentUser({ commit }) {

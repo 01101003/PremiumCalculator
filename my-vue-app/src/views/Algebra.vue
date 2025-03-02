@@ -172,33 +172,32 @@ export default {
       }
     },
     async checkSession() {
-      try {
+    try {
         console.log('Checking for active session');
-        // First try to get current session from Vuex store
-        const currentUser = await this.fetchCurrentUser();
-        console.log('Session check - currentUser:', currentUser);
+        // First try to get current session from Appwrite
+        const session = await account.get();
+        console.log('Session from Appwrite:', session);
         
-        // If no user in Vuex store, try to fetch from Appwrite
-        if (!currentUser) {
-          const session = await account.get();
-          console.log('Session from Appwrite:', session);
-          if (session && session.$id) {
+        if (session && session.$id) {
             // Get full user data from our custom users collection
             const userData = await this.getUserData(session.$id);
             console.log('User data from custom collection:', userData);
+            
             if (userData) {
-              // Update Vuex store with user data
-              await this.updateUserState({ ...session, ...userData });
-              console.log('Updated user state with:', { ...session, ...userData });
+                // Update Vuex store with user data
+                await this.updateUserState({ ...session, ...userData });
+                console.log('Updated user state with:', { ...session, ...userData });
             }
-          }
+        } else {
+            // No valid session, ensure store is cleared
+            await this.clearUserState();
         }
-      } catch (error) {
+    } catch (error) {
         console.error('Session check error:', error);
         // Clear user state in Vuex store
         await this.clearUserState();
-      }
-    },
+    }
+},
     async getUserData(appwriteUserId) {
       try {
         console.log('Getting user data for Appwrite user ID:', appwriteUserId);
@@ -290,7 +289,7 @@ export default {
           if (this.isLoggedIn && this.userId) {
             // No need to parse userId here - we'll let the service handle the conversion
             // The userId from Vuex should already be an integer based on the store mutations
-            console.log('Saving calculation with userId:', this.userId);
+            console.log('Saving calculation with userId:', this.userId, typeof this.userId);
             try {
               const result = await appwriteService.saveCalculation(
                 this.userId, 

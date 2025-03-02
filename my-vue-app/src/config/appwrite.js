@@ -217,38 +217,38 @@ export const appwriteService = {
     },
 
     // Save calculation
-    async saveCalculation(userId, calculationType, input, result) {
-        try {
-            console.log('saveCalculation called with userId:', userId, typeof userId);
-            
-            if (!userId || !calculationType || !input || result === undefined) {
-                throw new Error('Missing required fields for calculation');
-            }
-            
-            // Use the helper method to ensure userId is an integer
-            const userIdInt = this.ensureIntegerId(userId);
-            console.log('userId after conversion:', userIdInt, typeof userIdInt);
-            
-            const saveResult = await databases.createDocument(
-                DATABASE_ID,
-                COLLECTIONS.CALCULATIONS,
-                ID.unique(),
-                {
-                    user_id: userIdInt,
-                    type: calculationType,
-                    input,
-                    result,
-                    timestamp: new Date().toISOString()
-                }
-            );
-            
-            console.log('Calculation saved successfully:', saveResult);
-            return saveResult;
-        } catch (error) {
-            console.error('Error saving calculation:', error);
-            throw new Error(`Failed to save calculation: ${error.message}`);
+    // In appwriteService.saveCalculation method
+async saveCalculation(userId, calculationType, input, result) {
+    try {
+        console.log('saveCalculation called with userId:', userId, typeof userId);
+        
+        if (!userId || !calculationType || !input || result === undefined) {
+            throw new Error('Missing required fields for calculation');
         }
-    },
+        
+        // Ensure userId is a number to match database expectations
+        const userIdInt = this.ensureIntegerId(userId);
+        
+        const saveResult = await databases.createDocument(
+            DATABASE_ID,
+            COLLECTIONS.CALCULATIONS,
+            ID.unique(),
+            {
+                user_id: userIdInt, // Make sure this is a number
+                type: calculationType,
+                input,
+                result,
+                timestamp: new Date().toISOString()
+            }
+        );
+        
+        console.log('Calculation saved successfully:', saveResult);
+        return saveResult;
+    } catch (error) {
+        console.error('Error saving calculation:', error);
+        throw new Error(`Failed to save calculation: ${error.message}`);
+    }
+},
 
     // Get user calculations
     async getUserCalculations(userId) {

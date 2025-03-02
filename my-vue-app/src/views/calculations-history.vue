@@ -11,8 +11,13 @@ const isEmpty = computed(() => calculations.value.length === 0);
 
 // Fetch calculations on mount
 const fetchCalculations = async () => {
+  // Check if user is logged in before proceeding
+  const isLoggedIn = store.getters.isLoggedIn;
   const userId = store.getters.userId;
-  if (!userId) {
+  
+  console.log('Fetch calculations - login state:', {isLoggedIn, userId});
+  
+  if (!isLoggedIn || !userId) {
     error.value = "You must be logged in to view calculation history";
     loading.value = false;
     return;
@@ -21,8 +26,7 @@ const fetchCalculations = async () => {
   try {
     loading.value = true;
     
-    // No need to parse userId here - we'll let the service handle the conversion
-    // The userId from Vuex should already be an integer based on the store mutations
+    console.log('Fetching calculations for userId:', userId, typeof userId);
     const response = await appwriteService.getUserCalculations(userId);
     
     calculations.value = response.documents;
