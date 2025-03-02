@@ -53,12 +53,11 @@
       }
       
     },
-    name: 'GeometryOptions',
-    components: {
-      BackButton
-    },
+    
+      
+    }
 
-  }
+  
   </script>
   
   <style scoped>
