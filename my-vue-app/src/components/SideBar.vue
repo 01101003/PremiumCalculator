@@ -18,7 +18,6 @@
         </div>
         <div class="user-info" v-show="!isCollapsed">
           <h3>{{ username }}</h3>
-          <p>{{ userPlan }}</p>
           <button 
             class="logout-button" 
             @click="$emit('logout')"
@@ -404,6 +403,26 @@ export default {
   transition: all 0.3s;
   box-shadow: 3px 3px 0 #333;
   font-family: inherit;
+}
+/* Add this to your existing styles */
+.logout-button {
+  margin-top: 10px;
+  background: white;
+  border: 2px solid #333;
+  color: #333;
+  padding: 6px 10px;
+  font-size: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 3px 3px 0 #333;
+  font-family: 'Press Start 2P', cursive;
+  display: inline-block;
+  position: relative;
+}
+
+.logout-button:hover {
+  background-color: #f5f5f5;
 }
 
 </style>
