@@ -39,7 +39,6 @@
   </template>
   
   <script>
-  import BackButton from '@/components/BackButton.vue';
   export default {
     name: 'GeometryOptions',
     methods: {
