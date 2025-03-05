@@ -5,20 +5,26 @@
 
       <div class="calculator-section">
         <div class="input-section">
-          <select v-model="operation">
-            <option value="solve">Solve Equation</option>
-            <option value="simplify">Simplify Expression</option>
-            <option value="factor">Factor</option>
-            <option value="expand">Expand</option>
-            <option value="integrate">Integrate</option>
-            <option value="derivative">Find Derivative</option>
-          </select>
-          <div id="math-input" ref="mathInput"></div>
-          <button @click="calculate">Calculate</button>
-        </div>
+          <div class="input-header">
+            <select v-model="operation">
+              <option value="solve">Solve Equation</option>
+              <option value="simplify">Simplify Expression</option>
+              <option value="factor">Factor</option>
+              <option value="expand">Expand</option>
+              <option value="integrate">Integrate</option>
+              <option value="derivative">Find Derivative</option>
+            </select>
+            <button @click="showHowToModal" class="how-to-btn">
+              <span class="btn-icon">?</span> How to Use
+            </button>
+          </div>
 
-        <div class="loading" v-show="isLoading">
-          <p>Computing result...</p>
+          <div id="math-input" ref="mathInput"></div>
+          <button @click="calculate" class="calculate-btn">Calculate</button>
+
+          <div class="loading" v-show="isLoading">
+            <p>Computing result...</p>
+          </div>
         </div>
 
         <div class="result-section">
@@ -34,13 +40,71 @@
         <div class="plot-section">
           <div id="plot" v-html="plot"></div>
         </div>
+      </div>
 
-        <!-- Debug info panel -->
-        <div class="debug-info" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
-          <h4>Debug Info:</h4>
-          <p>Logged in: {{ isLoggedIn }}</p>
-          <p>User ID: {{ userId }} (Type: {{ typeof userId }})</p>
-          <p>Username: {{ username }}</p>
+      <!-- Overlay -->
+      <div class="overlay" v-show="showOverlay || showHowToModal" @click="closeModals"></div>
+
+      <!-- How To Modal -->
+      <div class="modal how-to-modal" v-show="showHowToModal" @click.stop>
+        <div class="modal-header">
+          <h2>How to Use the Algebra Calculator</h2>
+          <button @click="closeHowToModal" class="close-modal-btn">×</button>
+        </div>
+
+        <div class="modal-content">
+          <section>
+            <h3>Input Methods</h3>
+            <p>Use the MathQuill input field to enter mathematical expressions. Click buttons or type directly to create notations.</p>
+          </section>
+
+          <section>
+            <h3>Calculation Types</h3>
+            <div class="calc-types-grid">
+              <div class="calc-type">
+                <strong>Solve Equation</strong>
+                <code>x + 5 = 10</code>
+              </div>
+              <div class="calc-type">
+                <strong>Simplify Expression</strong>
+                <code>(x^2 + 2x + 1) / (x + 1)</code>
+              </div>
+              <div class="calc-type">
+                <strong>Factor</strong>
+                <code>x^2 - 4</code>
+              </div>
+              <div class="calc-type">
+                <strong>Expand</strong>
+                <code>(x + 2)(x - 3)</code>
+              </div>
+              <div class="calc-type">
+                <strong>Integrate</strong>
+                <code>∫ x^2 dx</code>
+              </div>
+              <div class="calc-type">
+                <strong>Derivative</strong>
+                <code>d/dx(x^3 + 2x)</code>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3>Calculation Storage</h3>
+            <p>Premium Plan users can save calculation history. Simple calculations are not stored. Advanced operations require login.</p>
+          </section>
+
+          <section class="tips-section">
+            <h3>Pro Tips</h3>
+            <ul>
+              <li>Use LaTeX-style input for complex notations</li>
+              <li>Ensure well-formed equations</li>
+              <li>Premium features unlock advanced capabilities</li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeHowToModal" class="got-it-btn">Got It!</button>
         </div>
       </div>
     </div>
@@ -65,6 +129,7 @@ export default {
       steps: '',
       plot: '',
       showOverlay: false,
+      showHowToModal: false, // Added this line
       showAboutUs: false,
       showLoginForm: false,
       isSignUp: false,
@@ -93,6 +158,7 @@ export default {
     closeModals() {
       this.showAboutUs = false;
       this.showLoginForm = false;
+      this.showHowToModal = false; // Added this line
       this.showOverlay = false;
       this.resetForm();
     },
@@ -102,6 +168,14 @@ export default {
       this.confirmPassword = '';
       this.fullName = '';
       this.authError = '';
+    },
+    showHowToModal() {
+      this.showHowToModal = true; // Show the modal
+      this.showOverlay = true; // Show the overlay
+    },
+    closeHowToModal() {
+      this.showHowToModal = false; // Hide the modal
+      this.showOverlay = false; // Hide the overlay
     },
     showAuthForm(type) {
       this.isSignUp = type === 'signup';
@@ -172,32 +246,32 @@ export default {
       }
     },
     async checkSession() {
-    try {
+      try {
         console.log('Checking for active session');
         // First try to get current session from Appwrite
         const session = await account.get();
         console.log('Session from Appwrite:', session);
-        
+
         if (session && session.$id) {
-            // Get full user data from our custom users collection
-            const userData = await this.getUserData(session.$id);
-            console.log('User data from custom collection:', userData);
-            
-            if (userData) {
-                // Update Vuex store with user data
-                await this.updateUserState({ ...session, ...userData });
-                console.log('Updated user state with:', { ...session, ...userData });
-            }
+          // Get full user data from our custom users collection
+          const userData = await this.getUserData(session.$id);
+          console.log('User data from custom collection:', userData);
+
+          if (userData) {
+            // Update Vuex store with user data
+            await this.updateUserState({ ...session, ...userData });
+            console.log('Updated user state with:', { ...session, ...userData });
+          }
         } else {
-            // No valid session, ensure store is cleared
-            await this.clearUserState();
+          // No valid session, ensure store is cleared
+          await this.clearUserState();
         }
-    } catch (error) {
+      } catch (error) {
         console.error('Session check error:', error);
         // Clear user state in Vuex store
         await this.clearUserState();
-    }
-},
+      }
+    },
     async getUserData(appwriteUserId) {
       try {
         console.log('Getting user data for Appwrite user ID:', appwriteUserId);
@@ -292,7 +366,7 @@ export default {
             console.log('Saving calculation with userId:', this.userId, typeof this.userId);
             try {
               const result = await appwriteService.saveCalculation(
-                this.userId, 
+                this.userId,
                 this.operation,
                 input,
                 this.result

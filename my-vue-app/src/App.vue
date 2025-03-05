@@ -1,7 +1,7 @@
 <template>
   <Analytics>
     <div id="app">
-      <Sidebar 
+      <Sidebar
         :isLoggedIn="isLoggedIn"
         :username="username"
         :userPlan="userPlan"
@@ -9,14 +9,14 @@
         @show-login="showAuthForm($event)"
         @logout="handleLogout"
       />
-      
+
       <div class="main-content" :class="{ 'with-sidebar': true }">
         <router-view></router-view>
       </div>
-      
+
       <!-- Overlay and modals -->
       <div class="overlay" v-show="showOverlay" @click="closeModals"></div>
-      
+
       <!-- About Us Container -->
       <div class="about-us-container" v-show="showAboutUs" @click.stop>
         <h2>ABOUT PREMIUM CALCULATOR</h2>
@@ -36,17 +36,17 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Login Form -->
       <form class="form" v-show="showLoginForm" @click.stop @submit.prevent="submitAuth">
         <div class="title">Welcome,<br><span>{{ isSignUp ? 'sign up to join us' : 'sign in to continue' }}</span></div>
         <input type="email" placeholder="Email" v-model="email" class="input" />
-        <input type="password" placeholder="Password" v-model="password" class="input" />
         <input v-if="isSignUp" type="text" placeholder="Full Name" v-model="fullName" class="input" />
+        <input type="password" placeholder="Password" v-model="password" class="input" />
         <input v-if="isSignUp" type="password" placeholder="Confirm Password" v-model="confirmPassword" class="input" />
-        
+
         <div v-if="authError" class="error-message">{{ authError }}</div>
-        
+
         <button class="button-confirm" type="submit">{{ isSignUp ? 'Sign Up →' : 'Let`s go →' }}</button>
       </form>
     </div>
@@ -109,21 +109,21 @@ export default {
     async submitAuth() {
       this.authError = '';
       this.isLoading = true;
-      
+
       try {
         if (this.isSignUp) {
           if (this.password !== this.confirmPassword) {
             this.authError = 'Passwords do not match!';
             return;
           }
-          
+
           // Create new user account
           const userData = await appwriteService.createEmailAccount(
             this.email,
             this.password,
             this.fullName || this.email.split('@')[0]
           );
-          
+
           this.currentUser = userData;
           this.$store.commit('setCurrentUser', userData); // Add this line
         } else {
@@ -132,10 +132,10 @@ export default {
           this.currentUser = userData;
           this.$store.commit('setCurrentUser', userData); // Add this line
         }
-        
+
         // Close the form on success
         this.closeModals();
-        
+
       } catch (error) {
         console.error('Authentication error:', error);
         this.authError = error.message || 'Authentication failed. Please try again.';
@@ -176,21 +176,21 @@ export default {
             appwriteService.databases.Query.equal('provider', 'email')
           ]
         );
-        
+
         if (credentials.total > 0) {
           const userId = credentials.documents[0].user_id;
-          
+
           const users = await appwriteService.databases.listDocuments(
             appwriteService.DATABASE_ID,
             appwriteService.COLLECTIONS.USERS,
             [appwriteService.databases.Query.equal('user_id', userId)]
           );
-          
+
           if (users.total > 0) {
             return users.documents[0];
           }
         }
-        
+
         return null;
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -384,11 +384,11 @@ body {
   .main-content {
     margin-left: 70px;
   }
-  
+
   .team-section {
     grid-template-columns: 1fr;
   }
-  
+
   .about-us-container,
   .form {
     width: 90%;
