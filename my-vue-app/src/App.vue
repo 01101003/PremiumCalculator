@@ -125,16 +125,21 @@ export default {
           );
 
           this.currentUser = userData;
-          this.$store.commit('setCurrentUser', userData); // Add this line
+          // Use the action instead of mutation
+          await this.$store.dispatch('updateUserState', userData);
         } else {
           // Login existing user
           const userData = await appwriteService.login(this.email, this.password);
           this.currentUser = userData;
-          this.$store.commit('setCurrentUser', userData); // Add this line
+          // Use the action instead of mutation
+          await this.$store.dispatch('updateUserState', userData);
         }
 
         // Close the form on success
         this.closeModals();
+        
+        // Debug the state after auth
+        this.debugAppState();
 
       } catch (error) {
         console.error('Authentication error:', error);
@@ -147,7 +152,7 @@ export default {
       try {
         await appwriteService.logout();
         this.currentUser = null;
-        this.$store.commit('setCurrentUser', null); // Add this line
+        await this.$store.dispatch('clearUserState');
       } catch (error) {
         console.error('Logout failed:', error);
       }
@@ -159,11 +164,11 @@ export default {
           // Get full user data from our custom users collection
           const userData = await this.getUserData(session.$id);
           this.currentUser = { ...session, ...userData };
-          this.$store.commit('setCurrentUser', { ...session, ...userData }); // Add this line
+          await this.$store.dispatch('updateUserState', { ...session, ...userData });
         }
       } catch (error) {
         console.log('No active session');
-        this.$store.commit('setCurrentUser', null); // Add this to ensure store is cleaned on error
+        await this.$store.dispatch('clearUserState');
       }
     },
     async getUserData(appwriteUserId) {
@@ -178,7 +183,8 @@ export default {
         );
 
         if (credentials.total > 0) {
-          const userId = credentials.documents[0].user_id;
+          // Get the user_id and ensure it's an integer
+          const userId = appwriteService.ensureIntegerId(credentials.documents[0].user_id);
 
           const users = await appwriteService.databases.listDocuments(
             appwriteService.DATABASE_ID,
@@ -196,10 +202,45 @@ export default {
         console.error('Error fetching user data:', error);
         return null;
       }
+    },
+    
+    // Debug helper method
+    async debugAppState() {
+      try {
+        console.group('App State Debug');
+        
+        // Component state
+        console.log('Component state:');
+        console.log('- currentUser:', this.currentUser);
+        console.log('- isLoggedIn:', this.isLoggedIn);
+        
+        // Store state
+        console.log('Store state:');
+        console.log('- currentUser:', this.$store.getters.currentUser);
+        console.log('- userId:', this.$store.getters.userId, typeof this.$store.getters.userId);
+        console.log('- isLoggedIn:', this.$store.getters.isLoggedIn);
+        
+        // Appwrite session check
+        try {
+          const session = await account.get();
+          console.log('Appwrite session:', session);
+        } catch (err) {
+          console.log('No active Appwrite session');
+        }
+        
+        console.groupEnd();
+      } catch (error) {
+        console.error('Error during app state debugging:', error);
+      }
     }
   },
   mounted() {
     this.checkSession();
+    
+    // Add this to help debug initial state on load
+    setTimeout(() => {
+      this.debugAppState();
+    }, 1000);
   }
 };
 </script>
