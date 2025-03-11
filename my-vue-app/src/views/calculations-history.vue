@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { appwriteService } from '@/config/appwrite';
 
@@ -15,28 +15,38 @@ const fetchCalculations = async () => {
   const isLoggedIn = store.getters.isLoggedIn;
   const userId = store.getters.userId;
   
-  console.log('Fetch calculations - login state:', {isLoggedIn, userId});
+  console.log('Fetch calculations - login state:', {isLoggedIn, userId, type: typeof userId});
   
-  if (!isLoggedIn || !userId) {
+  if (!isLoggedIn || userId === null) {
     error.value = "You must be logged in to view calculation history";
     loading.value = false;
+    calculations.value = [];
     return;
   }
 
   try {
     loading.value = true;
+    error.value = null;
     
     console.log('Fetching calculations for userId:', userId, typeof userId);
     const response = await appwriteService.getUserCalculations(userId);
     
     calculations.value = response.documents;
+    console.log(`Fetched ${calculations.value.length} calculations`);
     loading.value = false;
   } catch (err) {
     console.error('Error fetching calculations:', err);
     error.value = `Failed to load calculations: ${err.message}`;
     loading.value = false;
+    calculations.value = [];
   }
 };
+
+// Watch for changes in login state or userId
+watch(() => [store.getters.isLoggedIn, store.getters.userId], () => {
+  console.log('Login state or userId changed, refreshing calculations');
+  fetchCalculations();
+}, { immediate: false });
 
 // Format the calculation type for display
 const formatType = (type) => {
@@ -48,12 +58,22 @@ const formatDate = (timestamp) => {
   return new Date(timestamp).toLocaleString();
 };
 
+// Add a manual refresh button
+const refreshData = () => {
+  fetchCalculations();
+};
+
 onMounted(fetchCalculations);
 </script>
 
 <template>
   <div class="calculation-history">
-    <h2 class="title">Calculation History</h2>
+    <div class="header-row">
+      <h2 class="title">Calculation History</h2>
+      <button @click="refreshData" class="refresh-button" :disabled="loading">
+        ↻ Refresh
+      </button>
+    </div>
     
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
@@ -95,11 +115,36 @@ onMounted(fetchCalculations);
   margin: 0 auto;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
 .title {
   font-size: 1.5rem;
   color: #333;
-  margin-bottom: 1.5rem;
-  text-align: center;
+  margin: 0;
+}
+
+.refresh-button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.refresh-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .loading {

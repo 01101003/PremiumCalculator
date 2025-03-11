@@ -1,6 +1,6 @@
 // src/store/index.js
 import { createStore } from 'vuex';
-import { account } from '@/config/appwrite';
+import { account, appwriteService } from '@/config/appwrite';
 
 export default createStore({
   state: {
@@ -15,27 +15,19 @@ export default createStore({
     setUserId(state, id) {
       console.log('setUserId mutation called with:', id, typeof id);
       
-      // Always store userId as an integer in the store
-      if (id !== null && id !== undefined) {
-          if (typeof id === 'string') {
-              const idInt = parseInt(id, 10);
-              if (!isNaN(idInt)) {
-                  console.log('Converted string id to integer:', idInt);
-                  state.userId = idInt;
-                  return;
-              }
-          } else if (typeof id === 'number') {
-              state.userId = id;
-              return;
-          }
-          
-          // If we get here, id is not valid
-          console.error('Invalid userId format:', id, typeof id);
+      try {
+        // Use appwriteService to ensure consistent userId handling
+        if (id !== null && id !== undefined) {
+          state.userId = appwriteService.ensureIntegerId(id);
+          console.log('userId set in store:', state.userId, typeof state.userId);
+        } else {
           state.userId = null;
-      } else {
-          state.userId = null;
+        }
+      } catch (error) {
+        console.error('Error setting userId in store:', error);
+        state.userId = null;
       }
-  },
+    },
   },
   actions: {
     async fetchCurrentUser({ commit }) {
@@ -59,10 +51,10 @@ export default createStore({
       // Also set the user_id from your custom users collection
       if (userData && userData.user_id !== undefined && userData.user_id !== null) {
         console.log('Setting userId to:', userData.user_id, typeof userData.user_id);
-        // Ensure user_id is stored as an integer
         commit('setUserId', userData.user_id);
       } else {
         console.warn('userData does not contain user_id:', userData);
+        commit('setUserId', null);
       }
     },
     async clearUserState({ commit }) {

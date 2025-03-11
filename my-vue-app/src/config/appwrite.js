@@ -1,4 +1,5 @@
 // src/config/appwrite.js
+
 import { Client, Account, Databases, ID, Functions, Query } from 'appwrite';
 
 // Initialize the Appwrite client
@@ -39,6 +40,10 @@ export const appwriteService = {
         }
     },
 
+    /**
+     * Ensures the userId is consistently an integer across all operations
+     * This is a critical function that standardizes user_id handling
+     */
     ensureIntegerId(userId) {
         console.log('ensureIntegerId called with:', userId, typeof userId);
         
@@ -68,12 +73,15 @@ export const appwriteService = {
                 throw new Error('Missing required fields for user document creation');
             }
 
+            // Ensure userId is an integer
+            const userIdInt = this.ensureIntegerId(userId);
+
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.USERS,
                 ID.unique(),
                 {
-                    user_id: userId,
+                    user_id: userIdInt,
                     email,
                     name,
                     profile_image: profileImage,
@@ -95,12 +103,15 @@ export const appwriteService = {
                 throw new Error('Missing required fields for auth credentials');
             }
 
+            // Ensure userId is an integer
+            const userIdInt = this.ensureIntegerId(userId);
+
             return await databases.createDocument(
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
                 ID.unique(),
                 {
-                    user_id: userId,
+                    user_id: userIdInt,
                     provider,
                     provider_user_id: providerUserId,
                     created_at: new Date().toISOString(),
@@ -192,11 +203,14 @@ export const appwriteService = {
     // Update last login
     async updateLastLogin(userId, provider, providerUserId) {
         try {
+            // Ensure userId is an integer
+            const userIdInt = this.ensureIntegerId(userId);
+            
             const credentials = await databases.listDocuments(
                 DATABASE_ID,
                 COLLECTIONS.AUTH_CREDENTIALS,
                 [
-                    Query.equal('user_id', userId),
+                    Query.equal('user_id', userIdInt),
                     Query.equal('provider', provider),
                     Query.equal('provider_user_id', providerUserId),
                 ]
@@ -216,41 +230,40 @@ export const appwriteService = {
         }
     },
 
-    // Save calculation
-    // In appwriteService.saveCalculation method
-async saveCalculation(userId, calculationType, input, result) {
-    try {
-        console.log('saveCalculation called with userId:', userId, typeof userId);
-        
-        if (!userId || !calculationType || !input || result === undefined) {
-            throw new Error('Missing required fields for calculation');
-        }
-        
-        // Ensure userId is a number to match database expectations
-        const userIdInt = this.ensureIntegerId(userId);
-        
-        const saveResult = await databases.createDocument(
-            DATABASE_ID,
-            COLLECTIONS.CALCULATIONS,
-            ID.unique(),
-            {
-                user_id: userIdInt, // Make sure this is a number
-                type: calculationType,
-                input,
-                result,
-                timestamp: new Date().toISOString()
+    // Save calculation - fixed to consistently use integer for user_id
+    async saveCalculation(userId, calculationType, input, result) {
+        try {
+            console.log('saveCalculation called with userId:', userId, typeof userId);
+            
+            if (!userId || !calculationType || !input || result === undefined) {
+                throw new Error('Missing required fields for calculation');
             }
-        );
-        
-        console.log('Calculation saved successfully:', saveResult);
-        return saveResult;
-    } catch (error) {
-        console.error('Error saving calculation:', error);
-        throw new Error(`Failed to save calculation: ${error.message}`);
-    }
-},
+            
+            // Ensure userId is an integer to match database expectations
+            const userIdInt = this.ensureIntegerId(userId);
+            
+            const saveResult = await databases.createDocument(
+                DATABASE_ID,
+                COLLECTIONS.CALCULATIONS,
+                ID.unique(),
+                {
+                    user_id: userIdInt, // Consistently use integer
+                    type: calculationType,
+                    input,
+                    result,
+                    timestamp: new Date().toISOString()
+                }
+            );
+            
+            console.log('Calculation saved successfully:', saveResult);
+            return saveResult;
+        } catch (error) {
+            console.error('Error saving calculation:', error);
+            throw new Error(`Failed to save calculation: ${error.message}`);
+        }
+    },
 
-    // Get user calculations
+    // Get user calculations - fixed to consistently use integer for user_id filter
     async getUserCalculations(userId) {
         try {
             console.log('getUserCalculations called with userId:', userId, typeof userId);
@@ -276,7 +289,7 @@ async saveCalculation(userId, calculationType, input, result) {
         }
     },
 
-    // Get user by provider ID
+    // Get user by provider ID - fixed to ensure consistent user_id handling
     async getUserByProviderId(provider, providerUserId) {
         try {
             console.log('getUserByProviderId called with:', provider, providerUserId);
@@ -300,10 +313,13 @@ async saveCalculation(userId, calculationType, input, result) {
                 const userId = credentials.documents[0].user_id;
                 console.log('Found userId in credentials:', userId, typeof userId);
                 
+                // Ensure userId is an integer
+                const userIdInt = this.ensureIntegerId(userId);
+                
                 const users = await databases.listDocuments(
                     DATABASE_ID,
                     COLLECTIONS.USERS,
-                    [Query.equal('user_id', userId)]
+                    [Query.equal('user_id', userIdInt)]
                 );
                 
                 console.log('Users found with this userId:', users.total);
