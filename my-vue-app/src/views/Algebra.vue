@@ -3,6 +3,16 @@
     <div class="container">
       <h2>ADVANCED ALGEBRA CALCULATOR</h2>
 
+      <!-- Debug info for development -->
+      <div class="debug-panel">
+        <details>
+          <summary>Auth Debug</summary>
+          <p>Logged in: {{ isLoggedIn }}</p>
+          <p>User ID: {{ userId }}</p>
+          <p>User ID Type: {{ typeof userId }}</p>
+        </details>
+      </div>
+
       <div class="calculator-section">
         <div class="input-section">
           <div class="input-header">
@@ -352,27 +362,30 @@ export default {
           this.steps = ''; // Quick calculation API doesn't provide steps
           this.plot = ''; // Quick calculation API doesn't provide plots
 
-          // Save calculation history for logged-in users
-          console.log('About to save calculation - userid state:', {
+          // Debug the current state
+          console.log('Before saving calculation - state check:', {
             isLoggedIn: this.isLoggedIn,
             userId: this.userId,
-            userIdType: typeof this.userId
+            userIdType: typeof this.userId,
+            inputType: typeof input,
+            operationType: typeof this.operation,
+            resultType: typeof this.result
           });
 
-          if (this.isLoggedIn && this.userId) {
-            // No need to parse userId here - we'll let the service handle the conversion
-            // The userId from Vuex should already be an integer based on the store mutations
+          // Save calculation history for logged-in users
+          if (this.isLoggedIn && this.userId !== null && this.userId !== undefined) {
             console.log('Saving calculation with userId:', this.userId, typeof this.userId);
             try {
-              const result = await appwriteService.saveCalculation(
+              const saveResult = await appwriteService.saveCalculation(
                 this.userId,
                 this.operation,
                 input,
                 this.result
               );
-              console.log('Calculation saved successfully:', result);
+              console.log('Calculation saved successfully:', saveResult);
             } catch (error) {
               console.error('Error saving calculation:', error);
+              console.error('Error details:', error.message);
             }
           } else {
             console.log('Not saving calculation - not logged in or no userId');
@@ -388,9 +401,17 @@ export default {
       }
     }
   },
-  mounted() {
+  async mounted() {
+    console.log('Algebra component mounted');
     this.initMathInput();
-    this.checkSession();
+    
+    // Check session and log state after it's set
+    await this.checkSession();
+    console.log('After session check:', {
+      isLoggedIn: this.isLoggedIn,
+      userId: this.userId,
+      userIdType: typeof this.userId
+    });
   }
 };
 </script>

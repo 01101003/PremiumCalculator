@@ -8,14 +8,22 @@ const calculations = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const isEmpty = computed(() => calculations.value.length === 0);
+const debugInfo = ref({userId: null, userIdType: null, isLoggedIn: false});
 
 // Fetch calculations on mount
 const fetchCalculations = async () => {
-  // Check if user is logged in before proceeding
+  // Get current login state
   const isLoggedIn = store.getters.isLoggedIn;
   const userId = store.getters.userId;
   
-  console.log('Fetch calculations - login state:', {isLoggedIn, userId, type: typeof userId});
+  // Update debug info
+  debugInfo.value = {
+    userId: userId,
+    userIdType: typeof userId,
+    isLoggedIn: isLoggedIn
+  };
+  
+  console.log('Fetch calculations - login state:', debugInfo.value);
   
   if (!isLoggedIn || userId === null) {
     error.value = "You must be logged in to view calculation history";
@@ -42,11 +50,15 @@ const fetchCalculations = async () => {
   }
 };
 
-// Watch for changes in login state or userId
-watch(() => [store.getters.isLoggedIn, store.getters.userId], () => {
-  console.log('Login state or userId changed, refreshing calculations');
-  fetchCalculations();
-}, { immediate: false });
+// Enhanced watcher to monitor store changes
+watch(
+  () => [store.getters.isLoggedIn, store.getters.userId], 
+  (newValues, oldValues) => {
+    console.log('Login state changed from', oldValues, 'to', newValues);
+    fetchCalculations();
+  }, 
+  { immediate: true, deep: true }
+);
 
 // Format the calculation type for display
 const formatType = (type) => {
@@ -63,7 +75,10 @@ const refreshData = () => {
   fetchCalculations();
 };
 
-onMounted(fetchCalculations);
+onMounted(() => {
+  console.log('Calculations history mounted, fetching data...');
+  fetchCalculations();
+});
 </script>
 
 <template>
@@ -73,6 +88,16 @@ onMounted(fetchCalculations);
       <button @click="refreshData" class="refresh-button" :disabled="loading">
         ↻ Refresh
       </button>
+    </div>
+    
+    <!-- Debug info visible during development -->
+    <div class="debug-panel">
+      <details>
+        <summary>Debug Info</summary>
+        <p>Logged in: {{ debugInfo.isLoggedIn }}</p>
+        <p>User ID: {{ debugInfo.userId }}</p>
+        <p>Type: {{ debugInfo.userIdType }}</p>
+      </details>
     </div>
     
     <div v-if="loading" class="loading">
@@ -264,6 +289,20 @@ onMounted(fetchCalculations);
   background: #f2f9f5;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
+}
+
+.debug-panel {
+  background: #eee;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.debug-panel details summary {
+  cursor: pointer;
+  font-weight: bold;
 }
 
 @media (max-width: 600px) {
