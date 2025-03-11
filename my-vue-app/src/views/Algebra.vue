@@ -14,7 +14,7 @@
               <option value="integrate">Integrate</option>
               <option value="derivative">Find Derivative</option>
             </select>
-            <button @click="showHowToModal" class="how-to-btn">
+            <button @click="openHowToModal" class="how-to-btn">
               <span class="btn-icon">?</span> How to Use
             </button>
           </div>
@@ -41,72 +41,71 @@
           <div id="plot" v-html="plot"></div>
         </div>
       </div>
+    </div>
+  </div>
+  
+  <!-- Overlay and Modal (moved outside container for proper positioning) -->
+  <div class="overlay" v-show="showOverlay || showHowToModal" @click="closeModals"></div>
+  
+  <!-- How To Modal -->
+  <div class="modal how-to-modal" v-show="showHowToModal" @click.stop>
+    <div class="modal-header">
+      <h2>How to Use the Algebra Calculator</h2>
+      <button @click="closeHowToModal" class="close-modal-btn">×</button>
+    </div>
 
-      <!-- Overlay -->
-      <div class="overlay" v-show="showOverlay || showHowToModal" @click="closeModals"></div>
+    <div class="modal-content">
+      <section>
+        <h3>Input Methods</h3>
+        <p>Use the MathQuill input field to enter mathematical expressions. Click buttons or type directly to create notations.</p>
+      </section>
 
-      <!-- How To Modal -->
-      <div class="modal how-to-modal" v-show="showHowToModal" @click.stop>
-        <div class="modal-header">
-          <h2>How to Use the Algebra Calculator</h2>
-          <button @click="closeHowToModal" class="close-modal-btn">×</button>
+      <section>
+        <h3>Calculation Types</h3>
+        <div class="calc-types-grid">
+          <div class="calc-type">
+            <strong>Solve Equation</strong>
+            <code>x + 5 = 10</code>
+          </div>
+          <div class="calc-type">
+            <strong>Simplify Expression</strong>
+            <code>(x^2 + 2x + 1) / (x + 1)</code>
+          </div>
+          <div class="calc-type">
+            <strong>Factor</strong>
+            <code>x^2 - 4</code>
+          </div>
+          <div class="calc-type">
+            <strong>Expand</strong>
+            <code>(x + 2)(x - 3)</code>
+          </div>
+          <div class="calc-type">
+            <strong>Integrate</strong>
+            <code>∫ x^2 dx</code>
+          </div>
+          <div class="calc-type">
+            <strong>Derivative</strong>
+            <code>d/dx(x^3 + 2x)</code>
+          </div>
         </div>
+      </section>
 
-        <div class="modal-content">
-          <section>
-            <h3>Input Methods</h3>
-            <p>Use the MathQuill input field to enter mathematical expressions. Click buttons or type directly to create notations.</p>
-          </section>
+      <section>
+        <h3>Calculation Storage</h3>
+        <p>Users can save calculation history. Simple calculations such as 2+2 are not stored.</p>
+      </section>
 
-          <section>
-            <h3>Calculation Types</h3>
-            <div class="calc-types-grid">
-              <div class="calc-type">
-                <strong>Solve Equation</strong>
-                <code>x + 5 = 10</code>
-              </div>
-              <div class="calc-type">
-                <strong>Simplify Expression</strong>
-                <code>(x^2 + 2x + 1) / (x + 1)</code>
-              </div>
-              <div class="calc-type">
-                <strong>Factor</strong>
-                <code>x^2 - 4</code>
-              </div>
-              <div class="calc-type">
-                <strong>Expand</strong>
-                <code>(x + 2)(x - 3)</code>
-              </div>
-              <div class="calc-type">
-                <strong>Integrate</strong>
-                <code>∫ x^2 dx</code>
-              </div>
-              <div class="calc-type">
-                <strong>Derivative</strong>
-                <code>d/dx(x^3 + 2x)</code>
-              </div>
-            </div>
-          </section>
+      <section class="tips-section">
+        <h3>Pro Tips</h3>
+        <ul>
+          <li>Use LaTeX-style input for complex notations</li>
+          <li>Ensure well-formed equations</li>
+        </ul>
+      </section>
+    </div>
 
-          <section>
-            <h3>Calculation Storage</h3>
-            <p>Premium Plan users can save calculation history. Simple calculations are not stored. Advanced operations require login.</p>
-          </section>
-
-          <section class="tips-section">
-            <h3>Pro Tips</h3>
-            <ul>
-              <li>Use LaTeX-style input for complex notations</li>
-              <li>Ensure well-formed equations</li>
-              <li>Premium features unlock advanced capabilities</li>
-            </ul>
-          </section>
-        </div>
-
-        <div class="modal-footer">
-          <button @click="closeHowToModal" class="got-it-btn">Got It!</button>
-        </div>
-      </div>
+    <div class="modal-footer">
+      <button @click="closeHowToModal" class="got-it-btn">Got It!</button>
     </div>
   </div>
 </template>
@@ -129,7 +128,7 @@ export default {
       steps: '',
       plot: '',
       showOverlay: false,
-      showHowToModal: false, // Added this line
+      showHowToModal: false,
       showAboutUs: false,
       showLoginForm: false,
       isSignUp: false,
@@ -158,7 +157,7 @@ export default {
     closeModals() {
       this.showAboutUs = false;
       this.showLoginForm = false;
-      this.showHowToModal = false; // Added this line
+      this.showHowToModal = false;
       this.showOverlay = false;
       this.resetForm();
     },
@@ -169,13 +168,13 @@ export default {
       this.fullName = '';
       this.authError = '';
     },
-    showHowToModal() {
-      this.showHowToModal = true; // Show the modal
-      this.showOverlay = true; // Show the overlay
+    openHowToModal() {
+      this.showHowToModal = true;
+      this.showOverlay = true;
     },
     closeHowToModal() {
-      this.showHowToModal = false; // Hide the modal
-      this.showOverlay = false; // Hide the overlay
+      this.showHowToModal = false;
+      this.showOverlay = false;
     },
     showAuthForm(type) {
       this.isSignUp = type === 'signup';
@@ -522,6 +521,154 @@ export default {
   padding: 5px;
   border-radius: 5px;
   min-height: 70px;
+}
+
+/* Modal and overlay styles */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+  font-family: 'Press Start 2P', cursive;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #8b4513;
+  color: white;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.2em;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.modal-content section {
+  margin-bottom: 20px;
+}
+
+.modal-content h3 {
+  color: #8b4513;
+  margin-top: 0;
+}
+
+.calc-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.calc-type {
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.calc-type code {
+  display: block;
+  margin-top: 5px;
+  padding: 8px;
+  background: #ffe4c4;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.tips-section ul {
+  padding-left: 20px;
+}
+
+.tips-section li {
+  margin-bottom: 8px;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  text-align: right;
+  border-top: 1px solid #eee;
+}
+
+.got-it-btn {
+  background: #8b4513;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.got-it-btn:hover {
+  background: #a0522d;
+}
+
+.how-to-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background: #8b4513;
+  font-size: 0.8em;
+}
+
+.btn-icon {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.input-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Ensure the modal scrolls if content is too tall */
+@media (max-height: 700px) {
+  .modal {
+    max-height: 90vh;
+  }
 }
 
 .debug-info {
